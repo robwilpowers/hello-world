@@ -1,0 +1,1129 @@
+<title>Hours Ledger</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=IBM+Plex+Mono:wght@400;500&family=Public+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: one working column. Week tab = commitment meters, project brush, 7-day x 48 half-hour time grid.
+   Year audit tab = per-project year totals, weekly bars vs target, and the week-by-week ledger table. */
+:root {
+  --bg: #f3f4f7;
+  --surface: #ffffff;
+  --surface-2: #eceef3;
+  --ink: #15171d;
+  --ink-2: #4a4f5b;
+  --muted: #767b87;
+  --line: #e1e3e9;
+  --line-strong: #c4c8d1;
+  --accent: #6b2d5e;
+  --accent-soft: #f4e8f1;
+  --good: #0b7535;
+  --good-soft: #e2f2e7;
+  --bad: #b0271f;
+  --bad-soft: #fbe8e6;
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100;
+  --s5: #e87ba4; --s6: #008300; --s7: #6250d6; --s8: #e34948;
+  --font-display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Public Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --radius: 10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111217; --surface: #1a1b21; --surface-2: #24262e; --ink: #eceef3; --ink-2: #b8bcc7;
+    --muted: #868b97; --line: #2b2e36; --line-strong: #3d414c; --accent: #e2a3d1; --accent-soft: #392333;
+    --good: #52c27a; --good-soft: #163021; --bad: #f08b82; --bad-soft: #3b1d1b;
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
+    --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #111217; --surface: #1a1b21; --surface-2: #24262e; --ink: #eceef3; --ink-2: #b8bcc7;
+  --muted: #868b97; --line: #2b2e36; --line-strong: #3d414c; --accent: #e2a3d1; --accent-soft: #392333;
+  --good: #52c27a; --good-soft: #163021; --bad: #f08b82; --bad-soft: #3b1d1b;
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
+  --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.45;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 48px;
+}
+.app { max-width: 1080px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; letter-spacing: -0.01em; }
+button, input, select, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+/* ---------- header ---------- */
+.top { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; }
+.brand { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-right: auto; }
+.brand h1 { font-size: 26px; font-weight: 700; }
+.sync { font-size: 12px; color: var(--muted); display: inline-flex; align-items: center; gap: 6px; }
+.sync::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--line-strong); }
+.sync[data-state="saved"]::before { background: var(--good); }
+.sync[data-state="saving"]::before { background: var(--accent); }
+.sync[data-state="error"]::before { background: var(--bad); }
+.sync[data-state="error"] { color: var(--bad); }
+.tabs { display: flex; gap: 4px; background: var(--surface-2); padding: 3px; border-radius: 9px; }
+.tabs a { text-decoration: none; color: var(--ink-2); padding: 6px 14px; border-radius: 7px; font-weight: 500; font-size: 13px; }
+.tabs a[aria-current="page"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+
+.btn { border: 1px solid var(--ink); background: var(--ink); color: var(--surface); border-radius: 8px; padding: 7px 14px; font-weight: 600; font-size: 13px; cursor: pointer; white-space: nowrap; }
+.btn:hover { opacity: .9; }
+.btn.ghost { background: transparent; color: var(--ink); border-color: var(--line-strong); }
+.btn.ghost:hover { background: var(--surface-2); opacity: 1; }
+.btn.small { padding: 5px 10px; font-size: 12px; }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.linkbtn { background: none; border: 0; padding: 0; color: var(--ink-2); text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--line-strong); cursor: pointer; font-size: 13px; }
+.linkbtn:hover { color: var(--ink); text-decoration-color: currentColor; }
+.iconbtn { width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--line-strong); background: var(--surface); cursor: pointer; font-size: 18px; line-height: 1; display: inline-grid; place-items: center; }
+.iconbtn:hover { background: var(--surface-2); }
+
+.banner { background: var(--accent-soft); border: 1px solid color-mix(in oklab, var(--accent) 30%, transparent); border-radius: var(--radius); padding: 12px 14px; display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; }
+.banner p { margin: 0; flex: 1 1 280px; min-width: 0; }
+.banner.error { background: var(--bad-soft); border-color: color-mix(in oklab, var(--bad) 35%, transparent); }
+
+/* ---------- week bar ---------- */
+.weekbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.weeklabel { display: flex; flex-direction: column; min-width: 0; }
+.weeklabel .wk { font-family: var(--font-mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.weeklabel .range { font-family: var(--font-display); font-size: 20px; font-weight: 600; }
+.weektotal { margin-left: auto; text-align: right; display: flex; flex-direction: column; }
+.weektotal .lbl { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.weektotal .val { font-family: var(--font-display); font-size: 20px; font-weight: 600; }
+
+/* ---------- commitment cards ---------- */
+.summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.card-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.swatch { width: 10px; height: 10px; border-radius: 3px; background: var(--pc); flex: none; }
+.card-head .name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.card-nums { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+.card-nums .big { font-family: var(--font-display); font-size: 28px; font-weight: 600; line-height: 1; }
+.card-nums .of { color: var(--ink-2); }
+.meter { position: relative; height: 8px; border-radius: 4px; background: color-mix(in oklab, var(--pc) 18%, var(--surface)); }
+.meter .fill { position: absolute; inset: 0 auto 0 0; border-radius: 4px; background: var(--pc); }
+.meter .tick { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--ink); border-radius: 1px; }
+.card-foot { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12px; color: var(--ink-2); }
+.pill { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: var(--surface-2); color: var(--ink-2); }
+.pill.good { background: var(--good-soft); color: var(--good); }
+.pill.bad { background: var(--bad-soft); color: var(--bad); }
+.pill.soon { background: var(--accent-soft); color: var(--accent); }
+
+.weekmeta { display: flex; gap: 16px; flex-wrap: wrap; align-items: center; font-size: 13px; color: var(--ink-2); }
+
+/* ---------- brush + block form ---------- */
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+.toolbar { padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; border-bottom: 1px solid var(--line); }
+.brushes { display: flex; flex-wrap: wrap; gap: 6px; }
+.brush { display: inline-flex; align-items: center; gap: 7px; padding: 6px 11px; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--surface); cursor: pointer; font-size: 13px; font-weight: 500; max-width: 100%; }
+.brush .swatch { border-radius: 50%; }
+.brush .key { font-family: var(--font-mono); font-size: 10px; color: var(--muted); }
+.brush .bname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.brush[aria-checked="true"] { border-color: var(--ink); background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--ink); }
+.brush.erase .swatch { background: repeating-linear-gradient(135deg, var(--line-strong) 0 2px, transparent 2px 4px); border: 1px solid var(--line-strong); }
+.hint { margin: 0; font-size: 12.5px; color: var(--ink-2); }
+
+.blockform { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--line); background: color-mix(in oklab, var(--surface-2) 45%, var(--surface)); }
+.blockform .ttl { width: 100%; font-size: 11px; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.field { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--ink-2); min-width: 0; }
+.field select, .field input, textarea { background: var(--surface); border: 1px solid var(--line-strong); border-radius: 7px; padding: 6px 8px; font-size: 13px; color: var(--ink); max-width: 100%; }
+
+/* ---------- time grid ---------- */
+.gridwrap { max-height: min(70vh, 720px); overflow: auto; border-radius: 0 0 var(--radius) var(--radius); overscroll-behavior: contain; }
+.grid { display: grid; grid-template-columns: 52px repeat(7, minmax(0, 1fr)); user-select: none; -webkit-user-select: none; outline: none; position: relative; }
+.grid:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.gh { position: sticky; top: 0; z-index: 3; background: var(--surface); border-bottom: 1px solid var(--line-strong); padding: 7px 4px 6px; text-align: center; min-width: 0; }
+.gh .dname { font-size: 11px; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.gh .ddate { font-family: var(--font-display); font-size: 17px; font-weight: 600; line-height: 1.2; }
+.gh .dtot { font-family: var(--font-mono); font-size: 11px; color: var(--ink-2); }
+.gh.today .dname, .gh.today .ddate { color: var(--accent); }
+.gh.today { box-shadow: inset 0 -2px 0 var(--accent); }
+.hl { grid-row: span 2; font-family: var(--font-mono); font-size: 10.5px; color: var(--muted); text-align: right; padding: 0 8px 0 0; transform: translateY(-7px); white-space: nowrap; }
+.cell { height: 15px; border-left: 1px solid var(--line); position: relative; cursor: crosshair; min-width: 0; font-size: 10.5px; line-height: 15px; padding-left: 6px; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; touch-action: manipulation; }
+.cell.top { border-top: 1px solid var(--line); }
+.cell.wkend { background: color-mix(in oklab, var(--surface-2) 55%, var(--surface)); }
+.cell.today { background: color-mix(in oklab, var(--accent-soft) 45%, var(--surface)); }
+.cell.on { background: color-mix(in oklab, var(--pc) 30%, var(--surface)); box-shadow: inset 3px 0 0 var(--pc); }
+.cell.on.runstart { font-weight: 600; }
+.cell.kfocus { outline: 2px solid var(--ink); outline-offset: -2px; z-index: 1; }
+.readonly .cell { cursor: default; }
+.note-row { padding: 12px 14px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 4px; }
+.note-row label { font-size: 12px; color: var(--ink-2); }
+.note-row textarea { width: 100%; resize: vertical; min-height: 40px; }
+
+/* ---------- audit ---------- */
+.yearbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.yearbar h2 { font-size: 24px; font-weight: 700; }
+.yearbar .exports { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; }
+.ysum { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+.ysum .card .stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.stat .k { font-size: 11px; color: var(--muted); letter-spacing: .05em; text-transform: uppercase; }
+.stat .v { font-family: var(--font-display); font-size: 19px; font-weight: 600; }
+.stat .v.neg { color: var(--bad); }
+.stat .v.pos { color: var(--good); }
+.charts { display: flex; flex-direction: column; gap: 6px; }
+.chart { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px 6px; }
+.chart h3 { font-family: var(--font-body); font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+.chart .axis { fill: var(--muted); font-family: var(--font-mono); font-size: 10px; }
+.chart .grid-l { stroke: var(--line); stroke-width: 1; }
+.chart .base { stroke: var(--line-strong); stroke-width: 1; }
+.chart .tgt { stroke: var(--ink); stroke-width: 2; stroke-linecap: round; }
+.chart .hit { fill: transparent; cursor: pointer; }
+.chart .hit:hover + .hov, .chart .hov.on { opacity: 1; }
+.chart .hov { fill: var(--ink); opacity: 0; pointer-events: none; }
+.chartkey { font-size: 12px; color: var(--ink-2); display: flex; gap: 14px; flex-wrap: wrap; align-items: center; }
+.chartkey i { display: inline-block; vertical-align: middle; margin-right: 5px; }
+.chartkey .kb { width: 8px; height: 12px; border-radius: 2px 2px 0 0; background: var(--ink-2); }
+.chartkey .kt { width: 12px; height: 2px; background: var(--ink); }
+.tablewrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 600; background: var(--surface); position: sticky; top: 0; }
+td.num, th.num { text-align: right; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+tbody tr { cursor: pointer; }
+tbody tr:hover { background: var(--surface-2); }
+tbody tr:last-child td { border-bottom: 0; }
+td .mk { font-family: var(--font-body); font-weight: 700; margin-left: 6px; }
+td .mk.good { color: var(--good); }
+td .mk.bad { color: var(--bad); }
+td .mk.prog { color: var(--muted); font-weight: 500; }
+td.note { white-space: normal; min-width: 180px; max-width: 320px; color: var(--ink-2); }
+.empty { padding: 28px 16px; text-align: center; color: var(--ink-2); }
+.foot { font-size: 12px; color: var(--muted); margin: 0; max-width: 70ch; }
+
+/* ---------- dialogs, tooltip, toast ---------- */
+dialog { border: 1px solid var(--line-strong); border-radius: 14px; background: var(--surface); color: var(--ink); padding: 0; width: min(560px, calc(100vw - 32px)); max-height: calc(100vh - 48px); }
+dialog::backdrop { background: rgba(10, 12, 18, .45); }
+.dlg { display: flex; flex-direction: column; gap: 14px; padding: 18px 18px 16px; }
+.dlg h2 { font-size: 20px; }
+.dlg p { margin: 0; color: var(--ink-2); font-size: 13px; }
+.prow { display: grid; grid-template-columns: auto minmax(0, 1fr) 92px auto; gap: 8px; align-items: end; }
+.prow.archived { opacity: .55; }
+.colorpick { position: relative; }
+.colorpick select { appearance: none; -webkit-appearance: none; width: 34px; height: 33px; border-radius: 7px; border: 1px solid var(--line-strong); color: transparent; background: var(--pc); cursor: pointer; padding: 0; }
+.colorpick select option { color: var(--ink); background: var(--surface); }
+.dlg-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; align-items: center; }
+.dlg-actions .left { margin-right: auto; }
+.check { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; color: var(--ink-2); }
+.tooltip { position: fixed; z-index: 20; pointer-events: none; background: var(--ink); color: var(--surface); font-size: 12px; padding: 6px 9px; border-radius: 7px; max-width: 240px; line-height: 1.4; }
+.toast { position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--surface); padding: 9px 14px; border-radius: 9px; font-size: 13px; z-index: 30; max-width: calc(100vw - 32px); opacity: 0; transition: opacity .2s; pointer-events: none; }
+.toast.show { opacity: 1; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+@media (max-width: 640px) {
+  .brand h1 { font-size: 22px; }
+  .grid { grid-template-columns: 36px repeat(7, minmax(0, 1fr)); }
+  .hl { font-size: 9.5px; padding-right: 4px; }
+  .cell { padding-left: 3px; font-size: 9.5px; }
+  .cell .ln { display: none; }
+  .gh .ddate { font-size: 15px; }
+  .gh .dtot { font-size: 10px; }
+  .weektotal { margin-left: 0; text-align: left; width: 100%; flex-direction: row; gap: 8px; align-items: baseline; }
+  .prow { grid-template-columns: auto minmax(0, 1fr) 76px; }
+  .prow .arch { grid-column: 2 / -1; justify-self: start; }
+}
+@media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
+</style>
+
+<div class="app" id="app">
+  <header class="top">
+    <div class="brand">
+      <h1>Hours Ledger</h1>
+      <span class="sync" id="sync" data-state="idle">Connecting…</span>
+    </div>
+    <nav class="tabs" aria-label="Views">
+      <a href="#week" id="tab-week" aria-current="page">Week</a>
+      <a href="#audit" id="tab-audit">Year audit</a>
+    </nav>
+    <button class="btn ghost" id="open-settings" type="button">Projects &amp; targets</button>
+  </header>
+
+  <div id="banner" class="banner" hidden></div>
+
+  <main>
+    <section id="view-week" class="app" aria-label="Week">
+      <div class="weekbar">
+        <button class="iconbtn" id="prev-week" type="button" aria-label="Previous week">‹</button>
+        <div class="weeklabel">
+          <span class="wk" id="wk-num">Week</span>
+          <span class="range" id="wk-range">&nbsp;</span>
+        </div>
+        <button class="iconbtn" id="next-week" type="button" aria-label="Next week">›</button>
+        <button class="btn ghost small" id="this-week" type="button">This week</button>
+        <div class="weektotal"><span class="lbl">Logged this week</span><span class="val" id="wk-total">0 h</span></div>
+      </div>
+
+      <div class="summary" id="summary"></div>
+
+      <div class="weekmeta">
+        <span id="targets-note"></span>
+        <button class="linkbtn" id="edit-week-targets" type="button">Adjust targets for this week</button>
+      </div>
+
+      <div class="panel" id="grid-panel">
+        <div class="toolbar">
+          <div class="brushes" id="brushes" role="radiogroup" aria-label="Project to fill time with"></div>
+          <p class="hint" id="hint">Pick a project, then click or drag down a day to fill time. Click a filled slot with the same project to clear it. Each slot is 30 minutes.</p>
+        </div>
+        <form class="blockform" id="block-form">
+          <span class="ttl">Log a block</span>
+          <label class="field">Day<select id="bf-day"></select></label>
+          <label class="field">From<select id="bf-from"></select></label>
+          <label class="field">To<select id="bf-to"></select></label>
+          <label class="field">Project<select id="bf-proj"></select></label>
+          <button class="btn" type="submit" id="bf-submit">Log block</button>
+        </form>
+        <div class="gridwrap" id="gridwrap">
+          <div class="grid" id="grid" tabindex="0" aria-label="Week time grid. Use arrow keys to move, Space to fill or clear the slot with the selected project, number keys to pick a project." aria-describedby="hint"></div>
+        </div>
+        <div class="note-row">
+          <label for="week-note">Notes for this week</label>
+          <textarea id="week-note" rows="2" placeholder="Anything you'll want to remember at audit time, e.g. out Thursday, agreed to make up 4 h next week"></textarea>
+        </div>
+      </div>
+    </section>
+
+    <section id="view-audit" class="app" aria-label="Year audit" hidden>
+      <div class="yearbar">
+        <button class="iconbtn" id="prev-year" type="button" aria-label="Previous year">‹</button>
+        <h2 id="year-label">2026</h2>
+        <button class="iconbtn" id="next-year" type="button" aria-label="Next year">›</button>
+        <div class="exports">
+          <button class="btn ghost small" id="export-weeks" type="button">Export weekly totals (CSV)</button>
+          <button class="btn ghost small" id="export-entries" type="button">Export time entries (CSV)</button>
+        </div>
+      </div>
+      <div class="ysum" id="year-summary"></div>
+      <div class="chartkey" id="chart-key"><span><i class="kb"></i>Hours logged that week</span><span><i class="kt"></i>Target that week</span></div>
+      <div class="charts" id="year-charts"></div>
+      <div class="tablewrap"><table id="year-table"></table></div>
+      <p class="foot">Weeks run Monday to Sunday and carry ISO week numbers. A week that spans New Year counts toward the year that holds its Thursday; the time-entries export lists every block by its real date if you need calendar-year totals. Weeks before your first logged week are left out; after that, a week with nothing logged counts as zero hours. Each week keeps the targets that applied when you logged it, so changing a target later does not rewrite past weeks.</p>
+    </section>
+  </main>
+</div>
+
+<dialog id="settings-dlg" aria-labelledby="settings-title">
+  <form class="dlg" id="settings-form" method="dialog">
+    <h2 id="settings-title">Projects &amp; weekly targets</h2>
+    <p>Set how many hours a week you've committed to each project. Archive a project to hide it from the grid while keeping its history.</p>
+    <div id="project-rows" style="display:flex;flex-direction:column;gap:10px"></div>
+    <div><button class="btn ghost small" type="button" id="add-project">Add project</button></div>
+    <label class="check"><input type="checkbox" id="apply-current" checked> <span id="apply-current-label">Also apply these targets to the week on screen</span></label>
+    <p>Weeks you've already logged keep the targets they had, so your audit reflects what you'd committed to at the time.</p>
+    <div class="dlg-actions">
+      <span class="left sync" id="settings-status" hidden></span>
+      <button class="btn ghost" type="button" id="settings-cancel">Cancel</button>
+      <button class="btn" type="submit" id="settings-save">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="targets-dlg" aria-labelledby="targets-title">
+  <form class="dlg" id="targets-form" method="dialog">
+    <h2 id="targets-title">Targets for this week</h2>
+    <p>Use this for a holiday week or an agreed change. It only affects this week.</p>
+    <div id="target-rows" style="display:flex;flex-direction:column;gap:10px"></div>
+    <div class="dlg-actions">
+      <button class="linkbtn left" type="button" id="targets-reset">Reset to current defaults</button>
+      <button class="btn ghost" type="button" id="targets-cancel">Cancel</button>
+      <button class="btn" type="submit">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<div class="tooltip" id="tooltip" hidden></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div class="sr" id="live" aria-live="polite"></div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = (s) => document.querySelector(s);
+  const SLOTS = 48;                 // half-hour slots per day
+  const DAY_MS = 864e5;
+  const SERIES = 8;
+  const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const DEFAULT_SETTINGS = {
+    projects: [
+      { id: 'p1', name: 'Project X', color: 0, target: 20, archived: false },
+      { id: 'p2', name: 'Project Y', color: 1, target: 10, archived: false },
+    ],
+  };
+
+  // ---------- dates ----------
+  const pad = (n) => String(n).padStart(2, '0');
+  const ymd = (d) => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+  const parseYmd = (s) => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
+  const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+  const startOfWeek = (d) => { const x = new Date(d.getFullYear(), d.getMonth(), d.getDate()); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; };
+  const isoWeek = (monday) => {
+    const year = addDays(monday, 3).getFullYear();
+    const wk1 = startOfWeek(new Date(year, 0, 4));
+    return { year, week: Math.round((monday - wk1) / (7 * DAY_MS)) + 1 };
+  };
+  const yearWeeks = (year) => {
+    const first = startOfWeek(new Date(year, 0, 4));
+    const next = startOfWeek(new Date(year + 1, 0, 4));
+    const n = Math.round((next - first) / (7 * DAY_MS));
+    return Array.from({ length: n }, (_, i) => addDays(first, 7 * i));
+  };
+  const fmtMD = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' });
+  const fmtMDY = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  const fmtHour = new Intl.DateTimeFormat(undefined, { hour: 'numeric' });
+  const fmtTime = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' });
+  const slotDate = (s) => new Date(2000, 0, 1, Math.floor(s / 2), (s % 2) * 30);
+  const slotLabel = (s) => (s >= SLOTS ? 'Midnight' : fmtTime.format(slotDate(s)));
+  const slot24 = (s) => (s >= SLOTS ? '24:00' : pad(Math.floor(s / 2)) + ':' + (s % 2 ? '30' : '00'));
+  const rangeLabel = (monday) => {
+    const sun = addDays(monday, 6);
+    return monday.getFullYear() !== sun.getFullYear()
+      ? fmtMDY.format(monday) + ' – ' + fmtMDY.format(sun)
+      : monday.getMonth() === sun.getMonth()
+        ? fmtMD.format(monday) + ' – ' + sun.getDate() + ', ' + sun.getFullYear()
+        : fmtMD.format(monday) + ' – ' + fmtMD.format(sun) + ', ' + sun.getFullYear();
+  };
+  const fmtH = (h) => { const r = Math.round(h * 10) / 10; return (Number.isInteger(r) ? String(r) : r.toFixed(1)) + ' h'; };
+  const fmtSigned = (h) => (h > 0 ? '+' : h < 0 ? '−' : '') + fmtH(Math.abs(h));
+  const clone = (o) => JSON.parse(JSON.stringify(o));
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+  // ---------- state ----------
+  const S = {
+    db: null,
+    downloads: null,
+    canWrite: true,
+    storeState: 'connecting', // connecting | live | slow | off | error
+    settings: clone(DEFAULT_SETTINGS),
+    settingsExists: false,
+    settingsLoaded: false,
+    weeks: {},                // weekId -> {weekStart, targets, slots, note, ...}
+    current: ymd(startOfWeek(new Date())),
+    brush: null,
+    auditYear: isoWeek(startOfWeek(new Date())).year,
+    kf: { d: (new Date().getDay() + 6) % 7, s: 18 },
+    showKf: false,
+    lastPointer: 'mouse',
+    saveError: false,
+  };
+  const rev = {}, saved = {}, chain = {}, timers = {};
+  const isDirty = (id) => (rev[id] || 0) !== (saved[id] || 0);
+
+  const projects = () => S.settings.projects || [];
+  const projById = (id) => projects().find((p) => p.id === id);
+  const activeProjects = () => projects().filter((p) => !p.archived);
+  const colorVar = (p) => 'var(--s' + (((p && p.color) || 0) % SERIES + 1) + ')';
+  const defaultTargets = () => { const t = {}; activeProjects().forEach((p) => { t[p.id] = Number(p.target) || 0; }); return t; };
+  const weekTargets = (id) => { const w = S.weeks[id]; return w && w.targets ? w.targets : defaultTargets(); };
+  const weekTotals = (w) => { const t = {}; if (w && w.slots) for (const k in w.slots) { const p = w.slots[k]; t[p] = (t[p] || 0) + 0.5; } return t; };
+  const sumObj = (o) => Object.values(o).reduce((a, b) => a + b, 0);
+  const todayMonday = () => ymd(startOfWeek(new Date()));
+  const weekPhase = (id) => { const t = todayMonday(); return id < t ? 'past' : id === t ? 'current' : 'future'; };
+  const projectsForWeek = (id) => {
+    const w = S.weeks[id];
+    const ids = new Set(activeProjects().map((p) => p.id));
+    if (w) { Object.keys(weekTotals(w)).forEach((k) => ids.add(k)); Object.keys(w.targets || {}).forEach((k) => { if (w.targets[k] > 0) ids.add(k); }); }
+    return projects().filter((p) => ids.has(p.id)).concat([...ids].filter((k) => !projById(k)).map((k) => ({ id: k, name: 'Removed project', color: 7, target: 0, archived: true })));
+  };
+  const ensureWeek = (id) => {
+    if (!S.weeks[id]) {
+      const mon = parseYmd(id); const iw = isoWeek(mon);
+      S.weeks[id] = { weekStart: id, isoYear: iw.year, isoWeek: iw.week, targets: defaultTargets(), slots: {}, note: '' };
+    }
+    if (!S.weeks[id].slots) S.weeks[id].slots = {};
+    return S.weeks[id];
+  };
+
+  // ---------- persistence ----------
+  function serializeWeek(id) {
+    const w = S.weeks[id];
+    return {
+      weekStart: id,
+      isoYear: w.isoYear, isoWeek: w.isoWeek,
+      targets: w.targets || defaultTargets(),
+      slots: w.slots || {},
+      totals: weekTotals(w),
+      note: w.note || '',
+      updatedAt: new Date().toISOString(),
+    };
+  }
+  function queueSave(id, delay = 700) {
+    rev[id] = (rev[id] || 0) + 1;
+    if (!S.db || !S.canWrite) { setSync(); return; }
+    setSync('saving');
+    clearTimeout(timers[id]);
+    timers[id] = setTimeout(() => { delete timers[id]; runSave(id); }, delay);
+  }
+  function runSave(id) {
+    chain[id] = (chain[id] || Promise.resolve()).then(() => doSave(id));
+    return chain[id];
+  }
+  async function doSave(id) {
+    const r = rev[id] || 0;
+    if (r === (saved[id] || 0) || !S.db) return;
+    try {
+      await S.db.doc('weeks/' + id).set(serializeWeek(id));
+      saved[id] = r;
+      if (!Object.keys(rev).some(isDirty)) { S.saveError = false; hideBanner('save'); setSync('saved'); }
+    } catch (e) { onWriteError(e, () => runSave(id)); }
+  }
+  function flushAll() { Object.keys(timers).forEach((id) => { clearTimeout(timers[id]); delete timers[id]; runSave(id); }); }
+  window.addEventListener('pagehide', flushAll);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flushAll(); });
+
+  function onWriteError(e, retry) {
+    const code = e && e.code;
+    S.saveError = true;
+    if (code === 'invalid_argument' || code === 'not_granted') {
+      S.canWrite = false; render();
+      showBanner('save', 'error', 'This view can only read the ledger, so the change was not saved. Only the owner can record hours.');
+    } else if (code === 'quota_exceeded') {
+      showBanner('save', 'error', 'The ledger is full and the change was not saved. Export your data, then remove old weeks you no longer need.');
+    } else if (code === 'revoked') {
+      S.db = null; setSync();
+      showBanner('save', 'error', 'Access to the saved ledger ended while the page was open. Reload the page to keep recording.');
+    } else {
+      showBanner('save', 'error', 'Your last change could not be saved. It is still on screen.', 'Try again', retry);
+    }
+    setSync('error');
+  }
+
+  function setSync(state) {
+    const el = $('#sync');
+    let text, st = 'idle';
+    if (!S.db) { text = S.storeState === 'connecting' ? 'Connecting…' : 'Not saving in this view'; }
+    else if (!S.canWrite) { text = 'View only'; }
+    else if (state === 'error' || S.saveError) { text = 'Not saved'; st = 'error'; }
+    else if (state === 'saving' || Object.keys(rev).some(isDirty)) { text = 'Saving…'; st = 'saving'; }
+    else if (S.storeState === 'slow') { text = 'Saved data not reachable yet'; st = 'error'; }
+    else if (S.storeState === 'error') { text = 'Saved data unavailable'; st = 'error'; }
+    else { text = 'All changes saved'; st = 'saved'; }
+    el.textContent = text; el.dataset.state = st;
+  }
+
+  // banners: one slot per key, most recent shown
+  const banners = new Map();
+  function showBanner(key, kind, text, actionLabel, action) { banners.set(key, { kind, text, actionLabel, action }); drawBanner(); }
+  function hideBanner(key) { banners.delete(key); drawBanner(); }
+  function drawBanner() {
+    const el = $('#banner');
+    const entries = [...banners.values()];
+    if (!entries.length) { el.hidden = true; el.innerHTML = ''; return; }
+    const b = entries[entries.length - 1];
+    el.className = 'banner' + (b.kind === 'error' ? ' error' : '');
+    el.innerHTML = '<p>' + esc(b.text) + '</p>' + (b.actionLabel ? '<button class="btn small" type="button" id="banner-act">' + esc(b.actionLabel) + '</button>' : '');
+    el.hidden = false;
+    if (b.actionLabel) $('#banner-act').onclick = b.action;
+  }
+
+  // ---------- connect to the store ----------
+  async function connect() {
+    const c = window.claude;
+    if (!c || typeof c.use !== 'function') { S.storeState = 'off'; offBanner(); setSync(); return; }
+    c.use('downloads').then((d) => { S.downloads = d; }).catch(() => {});
+    c.use('user').then(async (u) => {
+      if (!u) return;
+      try { const ok = await u.can('data.write'); if (ok === false) { S.canWrite = false; render(); } } catch (_) {}
+    }).catch(() => {});
+    let db = null;
+    try { db = await c.use('db'); } catch (_) { db = null; }
+    if (!db) { S.storeState = 'off'; offBanner(); setSync(); render(); return; }
+    S.db = db;
+    let weeksLive = false, settingsLive = false;
+    const slowTimer = setTimeout(() => { if (!(weeksLive && settingsLive)) { S.storeState = 'slow'; setSync(); showBanner('load', 'info', 'Your saved hours can’t be reached yet. What you see may be out of date; new changes will save once the connection returns.'); } }, 10000);
+    const liveCheck = () => { if (weeksLive && settingsLive) { clearTimeout(slowTimer); S.storeState = 'live'; hideBanner('load'); setSync(); } };
+
+    db.doc('config/settings').onSnapshot((snap) => {
+      if (snap.exists) {
+        const d = clone(snap.data());
+        if (Array.isArray(d.projects) && d.projects.length) S.settings = d;
+        S.settingsExists = true;
+      } else if (!snap.metadata.fromCache) { S.settingsExists = false; }
+      if (!snap.metadata.fromCache) { settingsLive = true; S.settingsLoaded = true; liveCheck(); }
+      ensureBrush(); render();
+    }, (e) => { clearTimeout(slowTimer); S.storeState = 'error'; showBanner('load', 'error', 'Your project settings could not be loaded (' + (e && e.code || 'error') + '). Reload the page to try again.'); setSync(); });
+
+    db.collection('weeks').onSnapshot((qs) => {
+      qs.docChanges().forEach((ch) => {
+        const id = ch.doc.id;
+        if (isDirty(id) || timers[id]) return;   // local edits win until they are saved
+        if (ch.type === 'removed') delete S.weeks[id];
+        else S.weeks[id] = clone(ch.doc.data());
+      });
+      if (!qs.metadata.fromCache) { weeksLive = true; liveCheck(); }
+      render();
+    }, (e) => { clearTimeout(slowTimer); S.storeState = 'error'; showBanner('load', 'error', 'Your logged weeks could not be loaded (' + (e && e.code || 'error') + '). Reload the page to try again.'); setSync(); });
+    setSync();
+  }
+  function offBanner() {
+    showBanner('off', 'info', 'Saving is off in this view, so anything you fill in here disappears when you leave. Open Hours Ledger on claude.ai while signed in to keep a permanent record.');
+  }
+
+  // ---------- grid ----------
+  const cells = [];   // cells[d][s]
+  const heads = [];
+  function buildGrid() {
+    const g = $('#grid');
+    const frag = document.createDocumentFragment();
+    const corner = document.createElement('div'); corner.className = 'gh'; frag.appendChild(corner);
+    for (let d = 0; d < 7; d++) {
+      const h = document.createElement('div'); h.className = 'gh';
+      h.innerHTML = '<div class="dname">' + DAYS[d] + '</div><div class="ddate"></div><div class="dtot mono"></div>';
+      heads.push(h); frag.appendChild(h); cells.push([]);
+    }
+    for (let s = 0; s < SLOTS; s++) {
+      if (s % 2 === 0) {
+        const hl = document.createElement('div'); hl.className = 'hl';
+        hl.textContent = s === 0 ? '' : fmtHour.format(slotDate(s)).replace(/\s/g, ' ');
+        frag.appendChild(hl);
+      }
+      for (let d = 0; d < 7; d++) {
+        const c = document.createElement('div');
+        c.className = 'cell' + (s % 2 === 0 ? ' top' : '');
+        c.dataset.d = d; c.dataset.s = s;
+        cells[d][s] = c; frag.appendChild(c);
+      }
+    }
+    g.appendChild(frag);
+  }
+  function scrollGridTo(slot) {
+    const wrap = $('#gridwrap');
+    const c = cells[0][slot];
+    wrap.scrollTop = Math.max(0, c.offsetTop - heads[0].offsetHeight - 4);
+  }
+
+  function renderGrid() {
+    const id = S.current; const w = S.weeks[id];
+    const slots = (w && w.slots) || {};
+    const mon = parseYmd(id); const today = ymd(new Date());
+    for (let d = 0; d < 7; d++) {
+      const date = addDays(mon, d); const isToday = ymd(date) === today;
+      let dayTotal = 0;
+      for (let s = 0; s < SLOTS; s++) {
+        const c = cells[d][s]; const pid = slots[d + '-' + s];
+        let cls = 'cell' + (s % 2 === 0 ? ' top' : '') + (d >= 5 ? ' wkend' : '') + (isToday ? ' today' : '');
+        let label = '';
+        if (pid) {
+          dayTotal += 0.5;
+          const p = projById(pid);
+          c.style.setProperty('--pc', colorVar(p || { color: 7 }));
+          cls += ' on';
+          if (slots[d + '-' + (s - 1)] !== pid) {
+            cls += ' runstart';
+            let e = s; while (e + 1 < SLOTS && slots[d + '-' + (e + 1)] === pid) e++;
+            label = '<span class="ln">' + esc(p ? p.name : 'Removed project') + ' · </span>' + fmtH((e - s + 1) / 2);
+          }
+          c.title = (p ? p.name : 'Removed project') + ', ' + DAYS[d] + ' ' + slotLabel(s) + '–' + slotLabel(s + 1);
+        } else {
+          c.style.removeProperty('--pc');
+          c.title = DAYS[d] + ' ' + slotLabel(s) + '–' + slotLabel(s + 1);
+        }
+        if (S.showKf && S.kf.d === d && S.kf.s === s) cls += ' kfocus';
+        if (c.className !== cls) c.className = cls;
+        if (c.dataset.l !== label) { c.dataset.l = label; c.innerHTML = label; }
+      }
+      const h = heads[d];
+      h.className = 'gh' + (isToday ? ' today' : '');
+      h.querySelector('.ddate').textContent = date.getDate();
+      h.querySelector('.dtot').textContent = dayTotal ? fmtH(dayTotal) : '–';
+    }
+    $('#grid-panel').classList.toggle('readonly', !S.canWrite);
+  }
+
+  function setSlot(d, s, pid) {
+    const w = ensureWeek(S.current); const k = d + '-' + s;
+    if (pid) { if (w.slots[k] === pid) return false; w.slots[k] = pid; }
+    else { if (!w.slots[k]) return false; delete w.slots[k]; }
+    return true;
+  }
+  let drag = null;
+  function applyDrag(d, s) {
+    const w = ensureWeek(S.current); const cur = w.slots[d + '-' + s];
+    let changed = false;
+    if (drag.mode === 'paint') changed = setSlot(d, s, drag.pid);
+    else if (drag.pid === 'erase' || cur === drag.pid) changed = setSlot(d, s, null);
+    if (changed) { drag.changed = true; renderWeek(); }
+  }
+  function startStroke(d, s) {
+    if (!S.canWrite) { toast('View only: hours can’t be changed here.'); return null; }
+    const pid = S.brush; if (!pid) { toast('Add a project first.'); return null; }
+    const cur = (S.weeks[S.current] && S.weeks[S.current].slots || {})[d + '-' + s];
+    return { pid, mode: pid === 'erase' || cur === pid ? 'clear' : 'paint', changed: false };
+  }
+  function endStroke() {
+    if (!drag) return;
+    const changed = drag.changed; drag = null;
+    if (changed) queueSave(S.current);
+  }
+
+  function wireGrid() {
+    const g = $('#grid');
+    g.addEventListener('pointerdown', (e) => {
+      S.lastPointer = e.pointerType;
+      const c = e.target.closest('.cell'); if (!c) return;
+      if (e.pointerType === 'touch' || e.button !== 0) return;
+      e.preventDefault(); g.focus({ preventScroll: true });
+      const d = +c.dataset.d, s = +c.dataset.s;
+      S.kf = { d, s }; S.showKf = false;
+      drag = startStroke(d, s); if (drag) applyDrag(d, s);
+    });
+    g.addEventListener('pointerover', (e) => {
+      if (!drag) return; const c = e.target.closest('.cell'); if (!c) return;
+      applyDrag(+c.dataset.d, +c.dataset.s);
+    });
+    window.addEventListener('pointerup', endStroke);
+    window.addEventListener('pointercancel', endStroke);
+    g.addEventListener('click', (e) => {
+      if (S.lastPointer !== 'touch') return;
+      const c = e.target.closest('.cell'); if (!c) return;
+      const d = +c.dataset.d, s = +c.dataset.s;
+      drag = startStroke(d, s); if (drag) { applyDrag(d, s); endStroke(); }
+    });
+    g.addEventListener('keydown', (e) => {
+      const k = e.key; let { d, s } = S.kf;
+      if (/^[1-8]$/.test(k)) { const p = activeProjects()[+k - 1]; if (p) { setBrush(p.id); announce('Brush: ' + p.name); } e.preventDefault(); return; }
+      if (k === '0' || k === 'e' || k === 'E') { setBrush('erase'); announce('Brush: erase'); e.preventDefault(); return; }
+      if (k === 'ArrowUp') s = Math.max(0, s - 1);
+      else if (k === 'ArrowDown') s = Math.min(SLOTS - 1, s + 1);
+      else if (k === 'ArrowLeft') d = Math.max(0, d - 1);
+      else if (k === 'ArrowRight') d = Math.min(6, d + 1);
+      else if (k === ' ' || k === 'Enter') {
+        e.preventDefault(); S.showKf = true;
+        drag = startStroke(d, s); if (drag) { applyDrag(d, s); endStroke(); }
+        const pid = (S.weeks[S.current] && S.weeks[S.current].slots || {})[d + '-' + s];
+        announce(DAYS[d] + ' ' + slotLabel(s) + ': ' + (pid ? (projById(pid) || {}).name : 'empty'));
+        renderGrid(); return;
+      } else return;
+      e.preventDefault(); S.kf = { d, s }; S.showKf = true; renderGrid();
+      const c = cells[d][s]; const wrap = $('#gridwrap');
+      const top = c.offsetTop - heads[0].offsetHeight, bottom = c.offsetTop + c.offsetHeight;
+      if (top < wrap.scrollTop) wrap.scrollTop = top; else if (bottom > wrap.scrollTop + wrap.clientHeight) wrap.scrollTop = bottom - wrap.clientHeight;
+      const pid = (S.weeks[S.current] && S.weeks[S.current].slots || {})[d + '-' + s];
+      announce(DAYS[d] + ' ' + slotLabel(s) + ': ' + (pid ? (projById(pid) || {}).name : 'empty'));
+    });
+    g.addEventListener('focus', () => { if (g.matches(':focus-visible')) { S.showKf = true; renderGrid(); } });
+    g.addEventListener('blur', () => { S.showKf = false; renderGrid(); });
+  }
+  function announce(t) { $('#live').textContent = t; }
+
+  // ---------- brushes ----------
+  function ensureBrush() {
+    const act = activeProjects();
+    if (S.brush === 'erase') return;
+    if (!S.brush || !act.some((p) => p.id === S.brush)) S.brush = act.length ? act[0].id : 'erase';
+  }
+  function setBrush(id) { S.brush = id; renderBrushes(); }
+  let brushKey = '';
+  function renderBrushes() {
+    const el = $('#brushes');
+    const act = activeProjects();
+    const key = S.brush + '|' + act.map((p) => p.id + ':' + p.name + ':' + p.color).join(',');
+    if (key === brushKey) return; brushKey = key;
+    el.innerHTML = act.map((p, i) => '<button type="button" class="brush" role="radio" data-id="' + esc(p.id) + '" aria-checked="' + (S.brush === p.id) + '" style="--pc:' + colorVar(p) + '"><span class="swatch"></span><span class="bname">' + esc(p.name) + '</span>' + (i < 8 ? '<span class="key">' + (i + 1) + '</span>' : '') + '</button>').join('') +
+      '<button type="button" class="brush erase" role="radio" data-id="erase" aria-checked="' + (S.brush === 'erase') + '"><span class="swatch"></span><span class="bname">Erase</span><span class="key">0</span></button>';
+    el.querySelectorAll('.brush').forEach((b) => { b.onclick = () => setBrush(b.dataset.id); });
+  }
+
+  // ---------- block form ----------
+  let formKey = '';
+  function fillBlockForm() {
+    const day = $('#bf-day'), from = $('#bf-from'), to = $('#bf-to'), proj = $('#bf-proj');
+    const key = S.current + '|' + day.value + '|' + activeProjects().map((p) => p.id + ':' + p.name).join(',');
+    if (key === formKey) return;
+    const mon = parseYmd(S.current);
+    const keepDay = day.value;
+    day.innerHTML = DAYS.map((n, d) => '<option value="' + d + '">' + n + ' ' + addDays(mon, d).getDate() + '</option>').join('');
+    if (keepDay !== '') day.value = keepDay; else day.value = S.current === todayMonday() ? (new Date().getDay() + 6) % 7 : 0;
+    if (!from.options.length) {
+      from.innerHTML = Array.from({ length: SLOTS }, (_, s) => '<option value="' + s + '">' + slotLabel(s) + '</option>').join('');
+      to.innerHTML = Array.from({ length: SLOTS }, (_, i) => '<option value="' + (i + 1) + '">' + slotLabel(i + 1) + '</option>').join('');
+      from.value = 18; to.value = 22;
+    }
+    const keepProj = proj.value;
+    proj.innerHTML = activeProjects().map((p) => '<option value="' + esc(p.id) + '">' + esc(p.name) + '</option>').join('') + '<option value="erase">Clear this time</option>';
+    if (keepProj && [...proj.options].some((o) => o.value === keepProj)) proj.value = keepProj;
+    formKey = S.current + '|' + day.value + '|' + activeProjects().map((p) => p.id + ':' + p.name).join(',');
+  }
+  function wireBlockForm() {
+    $('#bf-from').addEventListener('change', () => { const f = +$('#bf-from').value, t = +$('#bf-to').value; if (t <= f) $('#bf-to').value = Math.min(SLOTS, f + 2); });
+    $('#block-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      if (!S.canWrite) { toast('View only: hours can’t be changed here.'); return; }
+      const d = +$('#bf-day').value, f = +$('#bf-from').value, t = +$('#bf-to').value, pid = $('#bf-proj').value;
+      if (t <= f) { toast('“To” must be later than “From”.'); return; }
+      const w = ensureWeek(S.current);
+      const replaced = {}; let changed = 0;
+      for (let s = f; s < t; s++) {
+        const cur = w.slots[d + '-' + s];
+        if (pid === 'erase') { if (cur) { delete w.slots[d + '-' + s]; changed++; } }
+        else if (cur !== pid) { if (cur) replaced[cur] = (replaced[cur] || 0) + 0.5; w.slots[d + '-' + s] = pid; changed++; }
+      }
+      if (!changed) { toast('Nothing changed: that time is already logged that way.'); return; }
+      renderWeek(); queueSave(S.current, 200);
+      const hrs = fmtH((t - f) / 2);
+      if (pid === 'erase') toast('Cleared ' + DAYS[d] + ' ' + slotLabel(f) + '–' + slotLabel(t) + '.');
+      else {
+        const rep = Object.keys(replaced).map((k) => fmtH(replaced[k]) + ' of ' + ((projById(k) || {}).name || 'another project')).join(', ');
+        toast('Logged ' + hrs + ' to ' + projById(pid).name + ' on ' + DAYS[d] + (rep ? ' (replaced ' + rep + ')' : '') + '.');
+      }
+      scrollGridTo(Math.max(0, f - 2));
+    });
+  }
+
+  // ---------- week view ----------
+  function renderWeek() {
+    const id = S.current; const mon = parseYmd(id); const iw = isoWeek(mon);
+    const phase = weekPhase(id);
+    $('#wk-num').textContent = 'Week ' + iw.week + ' · ' + iw.year + (phase === 'current' ? ' · this week' : '');
+    $('#wk-range').textContent = rangeLabel(mon);
+    $('#this-week').hidden = phase === 'current';
+    const w = S.weeks[id]; const totals = weekTotals(w); const targets = weekTargets(id);
+    $('#wk-total').textContent = fmtH(sumObj(totals));
+
+    const list = projectsForWeek(id);
+    const daysLeft = phase === 'current' ? 7 - ((new Date().getDay() + 6) % 7) : 0;
+    $('#summary').innerHTML = list.length ? list.map((p) => {
+      const got = totals[p.id] || 0; const tgt = Number(targets[p.id]) || 0;
+      const scale = Math.max(tgt, got, 0.5);
+      let pill, foot = '';
+      if (!tgt) pill = '<span class="pill">No target</span>';
+      else if (got >= tgt) { pill = '<span class="pill good">✓ Met</span>'; if (got > tgt) foot = fmtSigned(got - tgt) + ' over target'; }
+      else if (phase === 'past') pill = '<span class="pill bad">✕ Short ' + fmtH(tgt - got) + '</span>';
+      else if (phase === 'current') { pill = '<span class="pill soon">' + fmtH(tgt - got) + ' to go</span>'; foot = daysLeft + (daysLeft === 1 ? ' day' : ' days') + ' left, about ' + fmtH(Math.ceil(((tgt - got) / daysLeft) * 2) / 2) + ' a day'; }
+      else pill = '<span class="pill">Not started</span>';
+      return '<div class="card" style="--pc:' + colorVar(p) + '">' +
+        '<div class="card-head"><span class="swatch"></span><span class="name">' + esc(p.name) + '</span></div>' +
+        '<div class="card-nums"><span class="big">' + fmtH(got) + '</span><span class="of">' + (tgt ? 'of ' + fmtH(tgt) : 'logged') + '</span></div>' +
+        '<div class="meter" role="img" aria-label="' + esc(p.name) + ': ' + fmtH(got) + (tgt ? ' of ' + fmtH(tgt) : '') + '"><div class="fill" style="width:' + (got / scale * 100).toFixed(2) + '%"></div>' + (tgt && got > tgt ? '<div class="tick" style="left:calc(' + (tgt / scale * 100).toFixed(2) + '% - 1px)"></div>' : '') + '</div>' +
+        '<div class="card-foot">' + pill + (foot ? '<span>' + foot + '</span>' : '') + '</div></div>';
+    }).join('') : '<div class="card"><p class="hint">No projects yet. Add one under Projects &amp; targets.</p></div>';
+
+    const isCustom = w && w.targets && JSON.stringify(normT(w.targets)) !== JSON.stringify(normT(defaultTargets()));
+    $('#targets-note').textContent = isCustom ? 'This week uses its own targets.' : '';
+    $('#edit-week-targets').hidden = !S.canWrite;
+
+    const note = $('#week-note');
+    if (document.activeElement !== note) note.value = (w && w.note) || '';
+    note.disabled = !S.canWrite;
+    $('#bf-submit').disabled = !S.canWrite;
+    renderGrid();
+  }
+  const normT = (t) => { const o = {}; Object.keys(t).sort().forEach((k) => { if (Number(t[k])) o[k] = Number(t[k]); }); return o; };
+
+  function wireWeekNav() {
+    const go = (id) => { S.current = id; $('#bf-day').value = ''; fillBlockForm(); renderWeek(); };
+    $('#prev-week').onclick = () => go(ymd(addDays(parseYmd(S.current), -7)));
+    $('#next-week').onclick = () => go(ymd(addDays(parseYmd(S.current), 7)));
+    $('#this-week').onclick = () => go(todayMonday());
+    S.goWeek = go;
+    let noteTimer = null;
+    const note = $('#week-note');
+    note.addEventListener('input', () => {
+      clearTimeout(noteTimer);
+      const id = S.current;
+      const val = note.value;
+      noteTimer = setTimeout(() => { const w = ensureWeek(id); if ((w.note || '') !== val) { w.note = val; queueSave(id, 0); } }, 900);
+    });
+    note.addEventListener('blur', () => { clearTimeout(noteTimer); const w = S.weeks[S.current]; if ((w ? w.note || '' : '') !== note.value) { ensureWeek(S.current).note = note.value; queueSave(S.current, 0); } });
+  }
+
+  // ---------- settings dialog ----------
+  let draft = null;
+  function openSettings() {
+    draft = clone(projects());
+    const mon = parseYmd(S.current); const iw = isoWeek(mon);
+    $('#apply-current-label').textContent = 'Also apply these targets to week ' + iw.week + ' (' + rangeLabel(mon) + '), the week on screen';
+    $('#apply-current').checked = weekPhase(S.current) !== 'past';
+    drawProjectRows();
+    $('#settings-save').disabled = !S.canWrite;
+    $('#settings-status').hidden = true;
+    $('#settings-dlg').showModal();
+  }
+  function drawProjectRows() {
+    const box = $('#project-rows');
+    box.innerHTML = draft.map((p, i) => '<div class="prow' + (p.archived ? ' archived' : '') + '" data-i="' + i + '">' +
+      '<label class="field colorpick" style="--pc:' + colorVar(p) + '">Color<select data-k="color" aria-label="Color for ' + esc(p.name) + '">' +
+        Array.from({ length: SERIES }, (_, c) => '<option value="' + c + '"' + (c === (p.color % SERIES) ? ' selected' : '') + '>Color ' + (c + 1) + '</option>').join('') + '</select></label>' +
+      '<label class="field">Project name<input data-k="name" id="pname-' + esc(p.id) + '" value="' + esc(p.name) + '" maxlength="60" required></label>' +
+      '<label class="field">Hours / week<input data-k="target" id="ptarget-' + esc(p.id) + '" type="number" min="0" max="168" step="0.5" value="' + (Number(p.target) || 0) + '"></label>' +
+      '<button type="button" class="linkbtn arch" data-k="archive">' + (p.archived ? 'Restore' : 'Archive') + '</button></div>').join('');
+    box.querySelectorAll('.prow').forEach((row) => {
+      const i = +row.dataset.i;
+      row.querySelector('[data-k=color]').onchange = (e) => { draft[i].color = +e.target.value; row.querySelector('.colorpick').style.setProperty('--pc', colorVar(draft[i])); };
+      row.querySelector('[data-k=name]').oninput = (e) => { draft[i].name = e.target.value; };
+      row.querySelector('[data-k=target]').oninput = (e) => { draft[i].target = Math.max(0, Math.min(168, Number(e.target.value) || 0)); };
+      row.querySelector('[data-k=archive]').onclick = () => { draft[i].archived = !draft[i].archived; drawProjectRows(); };
+    });
+  }
+  function wireSettings() {
+    $('#open-settings').onclick = openSettings;
+    $('#settings-cancel').onclick = () => $('#settings-dlg').close();
+    $('#add-project').onclick = () => {
+      const used = new Set(draft.map((p) => p.color % SERIES));
+      let color = 0; while (used.has(color) && color < SERIES - 1) color++;
+      draft.push({ id: 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), name: 'Project ' + (draft.length + 1), color, target: 0, archived: false });
+      drawProjectRows();
+      const last = $('#project-rows').lastElementChild.querySelector('[data-k=name]'); last.focus(); last.select();
+    };
+    $('#settings-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!S.canWrite) return;
+      const clean = draft.map((p) => ({ id: p.id, name: (p.name || '').trim() || 'Untitled project', color: (Number(p.color) || 0) % SERIES, target: Math.round((Number(p.target) || 0) * 2) / 2, archived: !!p.archived }));
+      if (!clean.some((p) => !p.archived)) { toast('Keep at least one project active.'); return; }
+      const applyCurrent = $('#apply-current').checked;
+      const status = $('#settings-status');
+      $('#settings-save').disabled = true; status.hidden = false; status.dataset.state = 'saving'; status.textContent = 'Saving…';
+      const prev = S.settings;
+      S.settings = { projects: clean, updatedAt: new Date().toISOString() };
+      try {
+        if (S.db) await S.db.doc('config/settings').set(clone(S.settings));
+        S.settingsExists = true;
+        if (applyCurrent) {
+          const nt = defaultTargets();
+          Object.keys(S.weeks).filter((id) => id === S.current || (id > S.current && id >= todayMonday())).forEach((id) => { S.weeks[id].targets = clone(nt); queueSave(id, 0); });
+        }
+        ensureBrush(); hideBanner('setup');
+        $('#settings-dlg').close(); render(); toast(S.db ? 'Projects and targets saved.' : 'Updated for this visit only. Saving is off in this view.');
+      } catch (err) {
+        S.settings = prev;
+        status.dataset.state = 'error'; status.textContent = err && err.code === 'invalid_argument' ? 'Only the owner can change projects.' : 'Not saved. Try again.';
+      } finally { $('#settings-save').disabled = !S.canWrite; }
+    });
+
+    // per-week targets
+    $('#edit-week-targets').onclick = () => {
+      const mon = parseYmd(S.current); const iw = isoWeek(mon);
+      $('#targets-title').textContent = 'Targets for week ' + iw.week;
+      const t = weekTargets(S.current);
+      $('#target-rows').innerHTML = projectsForWeek(S.current).map((p) => '<label class="field" style="flex-direction:row;align-items:center;gap:10px;--pc:' + colorVar(p) + '"><span class="swatch"></span><span style="flex:1;min-width:0;color:var(--ink)">' + esc(p.name) + '</span><input type="number" id="wt-' + esc(p.id) + '" data-id="' + esc(p.id) + '" min="0" max="168" step="0.5" style="width:96px" value="' + (Number(t[p.id]) || 0) + '"> h</label>').join('');
+      $('#targets-dlg').showModal();
+    };
+    $('#targets-cancel').onclick = () => $('#targets-dlg').close();
+    $('#targets-reset').onclick = () => { const d = defaultTargets(); $('#target-rows').querySelectorAll('input').forEach((i) => { i.value = d[i.dataset.id] || 0; }); };
+    $('#targets-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const w = ensureWeek(S.current); const t = {};
+      $('#target-rows').querySelectorAll('input').forEach((i) => { t[i.dataset.id] = Math.round(Math.max(0, Math.min(168, Number(i.value) || 0)) * 2) / 2; });
+      w.targets = t; queueSave(S.current, 0);
+      $('#targets-dlg').close(); renderWeek(); toast('Targets for this week saved.');
+    });
+  }
+
+  // ---------- audit ----------
+  function firstTrackedWeek() {
+    const ids = Object.keys(S.weeks).filter((id) => { const w = S.weeks[id]; return w && ((w.slots && Object.keys(w.slots).length) || (w.note || '').trim()); }).sort();
+    return ids[0] || null;
+  }
+  function yearRows(year) {
+    const first = firstTrackedWeek(); const tm = todayMonday();
+    return yearWeeks(year).map((mon) => {
+      const id = ymd(mon); const iw = isoWeek(mon);
+      let status = 'counted';
+      if (id > tm) status = 'future'; else if (id === tm) status = 'current'; else if (!first || id < first) status = 'untracked';
+      const w = S.weeks[id];
+      return { id, mon, week: iw.week, status, totals: weekTotals(w), targets: weekTargets(id), note: (w && w.note) || '' };
+    });
+  }
+  function auditProjects(rows) {
+    const ids = new Set(activeProjects().map((p) => p.id));
+    rows.forEach((r) => { if (r.status === 'counted' || r.status === 'current') { Object.keys(r.totals).forEach((k) => ids.add(k)); } });
+    return projects().filter((p) => ids.has(p.id)).concat([...ids].filter((k) => !projById(k)).map((k) => ({ id: k, name: 'Removed project', color: 7 })));
+  }
+  function renderAudit() {
+    const year = S.auditYear;
+    $('#year-label').textContent = year;
+    $('#next-year').disabled = year >= isoWeek(startOfWeek(new Date())).year;
+    const rows = yearRows(year);
+    const plist = auditProjects(rows);
+    const done = rows.filter((r) => r.status === 'counted');
+    const cur = rows.find((r) => r.status === 'current');
+
+    // per-project year summary
+    $('#year-summary').innerHTML = plist.map((p) => {
+      let got = 0, tgt = 0, met = 0, withT = 0;
+      done.forEach((r) => { const g = r.totals[p.id] || 0, t = Number(r.targets[p.id]) || 0; got += g; tgt += t; if (t) { withT++; if (g >= t) met++; } });
+      const bal = got - tgt; const avg = done.length ? got / done.length : 0;
+      const curTxt = cur ? 'Plus ' + fmtH(cur.totals[p.id] || 0) + ' so far this week.' : '';
+      return '<div class="card" style="--pc:' + colorVar(p) + '"><div class="card-head"><span class="swatch"></span><span class="name">' + esc(p.name) + '</span></div>' +
+        '<div class="card-nums"><span class="big">' + fmtH(got) + '</span><span class="of">' + (tgt ? 'of ' + fmtH(tgt) + ' committed' : 'logged') + '</span></div>' +
+        '<div class="stats"><div class="stat"><div class="k">Weeks met</div><div class="v">' + (withT ? met + ' / ' + withT : '–') + '</div></div>' +
+        '<div class="stat"><div class="k">Balance</div><div class="v ' + (tgt ? (bal < 0 ? 'neg' : 'pos') : '') + '">' + (tgt ? fmtSigned(bal) : '–') + '</div></div>' +
+        '<div class="stat"><div class="k">Avg / week</div><div class="v">' + fmtH(avg) + '</div></div></div>' +
+        '<div class="card-foot">' + (done.length ? 'Across ' + done.length + ' completed ' + (done.length === 1 ? 'week' : 'weeks') + '. ' : 'No completed weeks yet. ') + curTxt + '</div></div>';
+    }).join('');
+
+    // charts: one small multiple per project, weeks on x
+    const anyTracked = rows.some((r) => r.status === 'counted' || r.status === 'current');
+    $('#chart-key').hidden = !anyTracked;
+    $('#year-charts').innerHTML = anyTracked ? plist.map((p) => chartSVG(p, rows)).join('') : '';
+    wireChartHover();
+
+    // table
+    const shown = rows.filter((r) => r.status === 'counted' || r.status === 'current').reverse();
+    const t = $('#year-table');
+    if (!shown.length) {
+      t.innerHTML = '<tbody><tr><td class="empty">No weeks logged in ' + year + ' yet. Fill in hours on the Week tab and they’ll be listed here.</td></tr></tbody>';
+      return;
+    }
+    t.innerHTML = '<thead><tr><th>Week</th><th>Dates</th>' + plist.map((p) => '<th class="num">' + esc(p.name) + '</th>').join('') + '<th class="num">Total</th><th>Notes</th></tr></thead><tbody>' +
+      shown.map((r) => '<tr data-id="' + r.id + '" tabindex="0" aria-label="Open week ' + r.week + '"><td class="mono">Wk ' + pad(r.week) + '</td><td>' + esc(rangeLabel(r.mon)) + '</td>' +
+        plist.map((p) => {
+          const g = r.totals[p.id] || 0, tg = Number(r.targets[p.id]) || 0;
+          let mk = '';
+          if (tg) mk = r.status === 'current' ? '<span class="mk prog" title="In progress">…</span>' : g >= tg ? '<span class="mk good" title="Met">✓</span>' : '<span class="mk bad" title="Missed">✕</span>';
+          return '<td class="num">' + fmtH(g).replace(' h', '') + (tg ? ' / ' + fmtH(tg).replace(' h', '') : '') + mk + '</td>';
+        }).join('') +
+        '<td class="num">' + fmtH(sumObj(r.totals)) + '</td><td class="note">' + esc(r.note) + '</td></tr>').join('') + '</tbody>';
+    t.querySelectorAll('tbody tr').forEach((tr) => {
+      const open = () => { S.goWeek(tr.dataset.id); location.hash = 'week'; };
+      tr.onclick = open; tr.onkeydown = (e) => { if (e.key === 'Enter') open(); };
+    });
+  }
+
+  function chartSVG(p, rows) {
+    const W = 720, H = 132, L = 34, R = 8, T = 10, B = 22;
+    const n = rows.length; const band = (W - L - R) / n;
+    let max = 0;
+    rows.forEach((r) => { if (r.status === 'counted' || r.status === 'current') max = Math.max(max, r.totals[p.id] || 0, Number(r.targets[p.id]) || 0); });
+    const step = max <= 10 ? 5 : max <= 20 ? 10 : max <= 40 ? 20 : max <= 60 ? 30 : 50;
+    const top = Math.max(step, Math.ceil(max / step) * step);
+    const y = (v) => T + (H - T - B) * (1 - v / top);
+    const bw = Math.max(2, Math.min(24, band - 2));
+    const rad = Math.min(4, bw / 2);
+    let out = '';
+    [0, top / 2, top].forEach((v) => {
+      out += '<line class="' + (v === 0 ? 'base' : 'grid-l') + '" x1="' + L + '" x2="' + (W - R) + '" y1="' + y(v).toFixed(1) + '" y2="' + y(v).toFixed(1) + '"/>';
+      out += '<text class="axis" x="' + (L - 6) + '" y="' + (y(v) + 3.5).toFixed(1) + '" text-anchor="end">' + v + '</text>';
+    });
+    // month labels at the first week that contains the 1st of a quarter month
+    const fmtMon = new Intl.DateTimeFormat(undefined, { month: 'short' });
+    rows.forEach((r, i) => {
+      for (let k = 0; k < 7; k++) {
+        const dd = addDays(r.mon, k);
+        if (dd.getDate() === 1 && dd.getMonth() % 3 === 0) out += '<text class="axis" x="' + (L + band * i + band / 2).toFixed(1) + '" y="' + (H - 6) + '" text-anchor="middle">' + fmtMon.format(dd) + '</text>';
+      }
+    });
+    rows.forEach((r, i) => {
+      if (!(r.status === 'counted' || r.status === 'current')) return;
+      const g = r.totals[p.id] || 0, tg = Number(r.targets[p.id]) || 0;
+      const x = L + band * i + (band - bw) / 2;
+      if (g > 0) {
+        const yt = y(g), yb = y(0), h = yb - yt, rr = Math.min(rad, h);
+        out += '<path fill="' + colorVar(p) + '" d="M' + x.toFixed(1) + ' ' + yb.toFixed(1) + 'V' + (yt + rr).toFixed(1) + 'Q' + x.toFixed(1) + ' ' + yt.toFixed(1) + ' ' + (x + rr).toFixed(1) + ' ' + yt.toFixed(1) + 'H' + (x + bw - rr).toFixed(1) + 'Q' + (x + bw).toFixed(1) + ' ' + yt.toFixed(1) + ' ' + (x + bw).toFixed(1) + ' ' + (yt + rr).toFixed(1) + 'V' + yb.toFixed(1) + 'Z"/>';
+      }
+      if (tg) out += '<line class="tgt" x1="' + (x - 1).toFixed(1) + '" x2="' + (x + bw + 1).toFixed(1) + '" y1="' + y(tg).toFixed(1) + '" y2="' + y(tg).toFixed(1) + '"/>';
+      const tip = 'Week ' + r.week + ' · ' + rangeLabel(r.mon) + '\n' + p.name + ': ' + fmtH(g) + (tg ? ' of ' + fmtH(tg) + (r.status === 'current' ? ' (in progress)' : g >= tg ? ' · met' : ' · short ' + fmtH(tg - g)) : '');
+      out += '<rect class="hit" x="' + (L + band * i).toFixed(1) + '" y="' + T + '" width="' + band.toFixed(1) + '" height="' + (H - T - B) + '" data-tip="' + esc(tip) + '"/>';
+      out += '<rect class="hov" x="' + (L + band * i + band / 2 - 0.5).toFixed(1) + '" y="' + (H - B + 2) + '" width="1" height="4"/>';
+    });
+    return '<div class="chart" style="--pc:' + colorVar(p) + '"><h3><span class="swatch"></span>' + esc(p.name) + ' · hours per week</h3>' +
+      '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + esc(p.name) + ' weekly hours against target for ' + S.auditYear + '. The table below lists every week.">' + out + '</svg></div>';
+  }
+  function wireChartHover() {
+    const tip = $('#tooltip');
+    document.querySelectorAll('#year-charts .hit').forEach((h) => {
+      h.addEventListener('pointerenter', () => { tip.innerHTML = esc(h.dataset.tip).replace('\n', '<br>'); tip.hidden = false; });
+      h.addEventListener('pointermove', (e) => {
+        const r = tip.getBoundingClientRect();
+        let x = e.clientX + 12, yy = e.clientY - r.height - 10;
+        if (x + r.width > innerWidth - 8) x = e.clientX - r.width - 12;
+        if (yy < 8) yy = e.clientY + 16;
+        tip.style.left = x + 'px'; tip.style.top = yy + 'px';
+      });
+      h.addEventListener('pointerleave', () => { tip.hidden = true; });
+    });
+  }
+
+  // ---------- export ----------
+  const csvCell = (v) => { const s = String(v == null ? '' : v); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+  const csv = (rows) => rows.map((r) => r.map(csvCell).join(',')).join('\n') + '\n';
+  function weeklyCSV(year) {
+    const rows = yearRows(year).filter((r) => r.status === 'counted' || r.status === 'current');
+    const plist = auditProjects(rows);
+    const head = ['Week start', 'Week end', 'ISO week'];
+    plist.forEach((p) => head.push(p.name + ' hours', p.name + ' target', p.name + ' met'));
+    head.push('Total hours', 'Notes');
+    const out = [head];
+    rows.forEach((r) => {
+      const line = [r.id, ymd(addDays(r.mon, 6)), year + '-W' + pad(r.week)];
+      plist.forEach((p) => {
+        const g = r.totals[p.id] || 0, t = Number(r.targets[p.id]) || 0;
+        line.push(g, t, !t ? '' : r.status === 'current' ? 'in progress' : g >= t ? 'yes' : 'no');
+      });
+      line.push(sumObj(r.totals), r.note);
+      out.push(line);
+    });
+    return csv(out);
+  }
+  function entriesCSV(year) {
+    const out = [['Date', 'Day', 'Start', 'End', 'Hours', 'Project', 'ISO week']];
+    yearRows(year).forEach((r) => {
+      const w = S.weeks[r.id]; if (!w || !w.slots) return;
+      for (let d = 0; d < 7; d++) {
+        let s = 0;
+        while (s < SLOTS) {
+          const pid = w.slots[d + '-' + s];
+          if (!pid) { s++; continue; }
+          let e = s; while (e + 1 < SLOTS && w.slots[d + '-' + (e + 1)] === pid) e++;
+          out.push([ymd(addDays(r.mon, d)), DAYS[d], slot24(s), slot24(e + 1), (e - s + 1) / 2, (projById(pid) || {}).name || 'Removed project', year + '-W' + pad(r.week)]);
+          s = e + 1;
+        }
+      }
+    });
+    return csv(out);
+  }
+  async function offer(filename, data) {
+    if (S.downloads) {
+      try { await S.downloads.save({ filename, data }); toast('Saved ' + filename + '.'); return; }
+      catch (e) { if (e && e.code === 'declined') return; if (e && e.code === 'rate_limited') { toast('A save prompt is already open.'); return; } }
+    }
+    try { await navigator.clipboard.writeText(data); toast('Downloads aren’t available here, so the CSV was copied to your clipboard.'); }
+    catch (_) { toast('This view can’t save or copy files. Open the ledger on claude.ai to export.'); }
+  }
+
+  // ---------- toast ----------
+  let toastTimer = null;
+  function toast(t) { const el = $('#toast'); el.textContent = t; el.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove('show'), 3200); }
+
+  // ---------- routing + render ----------
+  function route() {
+    const audit = location.hash === '#audit';
+    $('#view-week').hidden = audit; $('#view-audit').hidden = !audit;
+    $('#tab-week').toggleAttribute('aria-current', !audit); if (!audit) $('#tab-week').setAttribute('aria-current', 'page');
+    $('#tab-audit').toggleAttribute('aria-current', audit); if (audit) $('#tab-audit').setAttribute('aria-current', 'page');
+    render();
+  }
+  function render() {
+    ensureBrush();
+    renderBrushes(); fillBlockForm();
+    if (!$('#view-week').hidden) renderWeek(); else renderAudit();
+    if (S.settingsLoaded && !S.settingsExists && S.canWrite && S.db) {
+      showBanner('setup', 'info', 'Start by naming your projects and the hours a week you’ve committed to each. Project X and Project Y are placeholders.', 'Set up projects', openSettings);
+    } else hideBanner('setup');
+    setSync();
+  }
+
+  // ---------- boot ----------
+  buildGrid(); wireGrid(); wireBlockForm(); wireWeekNav(); wireSettings();
+  $('#prev-year').onclick = () => { S.auditYear--; renderAudit(); };
+  $('#next-year').onclick = () => { S.auditYear++; renderAudit(); };
+  $('#export-weeks').onclick = () => offer('hours-' + S.auditYear + '-weekly.csv', weeklyCSV(S.auditYear));
+  $('#export-entries').onclick = () => offer('hours-' + S.auditYear + '-entries.csv', entriesCSV(S.auditYear));
+  window.addEventListener('hashchange', route);
+  if (matchMedia('(pointer: coarse)').matches) $('#hint').textContent = 'Pick a project, then tap slots to fill them, or use Log a block for longer stretches. Tap a filled slot with the same project to clear it. Each slot is 30 minutes.';
+  route();
+  requestAnimationFrame(() => scrollGridTo(14));
+  connect();
+})();
+</script>
