@@ -1,0 +1,1191 @@
+<title>Project Hours Ledger</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: one working column. The week ledger (7 days x 48 half-hour cells) is the page; commitments sit above it, entry tools below. Chrome stays in ink so project colours carry the data. */
+:root {
+  --bg: #f2f4f6;
+  --surface: #ffffff;
+  --surface-2: #eceff2;
+  --ink: #121b24;
+  --ink-2: #465462;
+  --muted: #6f7c89;
+  --line: #dde2e7;
+  --line-strong: #c5cdd5;
+  --accent: #1c2a37;
+  --accent-ink: #ffffff;
+  --focus: #1f5fbf;
+  --today: #eef4fc;
+  --good: #0d6e26;
+  --good-bg: #e2f3e5;
+  --bad: #a81f1f;
+  --bad-bg: #fbe5e3;
+  --warn: #7a5000;
+  --warn-bg: #fdf0d2;
+  --s0: #9aa5b0; --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100;
+  --s5: #e87ba4; --s6: #008300; --s7: #6250d6; --s8: #e34948;
+  --on-s0: #121b24; --on-s1: #ffffff; --on-s2: #121b24; --on-s3: #121b24; --on-s4: #121b24;
+  --on-s5: #121b24; --on-s6: #ffffff; --on-s7: #ffffff; --on-s8: #121b24;
+  --font-display: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --row: 22px;
+  --radius: 10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1217; --surface: #151b22; --surface-2: #1c242d; --ink: #e6ebf0; --ink-2: #b2bdc8; --muted: #8794a1;
+    --line: #252f39; --line-strong: #344150; --accent: #dfe6ed; --accent-ink: #0d1217; --focus: #7fb0f0; --today: #18222d;
+    --good: #4cc366; --good-bg: #11301a; --bad: #f2857d; --bad-bg: #3b1815; --warn: #f0c25a; --warn-bg: #332710;
+    --s0: #5d6873; --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
+    --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767;
+    --on-s0: #ffffff; --on-s1: #121b24; --on-s2: #121b24; --on-s3: #121b24; --on-s4: #121b24;
+    --on-s5: #121b24; --on-s6: #ffffff; --on-s7: #121b24; --on-s8: #121b24;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d1217; --surface: #151b22; --surface-2: #1c242d; --ink: #e6ebf0; --ink-2: #b2bdc8; --muted: #8794a1;
+  --line: #252f39; --line-strong: #344150; --accent: #dfe6ed; --accent-ink: #0d1217; --focus: #7fb0f0; --today: #18222d;
+  --good: #4cc366; --good-bg: #11301a; --bad: #f2857d; --bad-bg: #3b1815; --warn: #f0c25a; --warn-bg: #332710;
+  --s0: #5d6873; --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
+  --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767;
+  --on-s0: #ffffff; --on-s1: #121b24; --on-s2: #121b24; --on-s3: #121b24; --on-s4: #121b24;
+  --on-s5: #121b24; --on-s6: #ffffff; --on-s7: #121b24; --on-s8: #121b24;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font: 400 14px/1.45 var(--font-body);
+}
+.app {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 56px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+h1, h2, h3, h4 { margin: 0; font-family: var(--font-display); font-weight: 600; text-wrap: balance; }
+h1 { font-size: 26px; letter-spacing: 0.005em; }
+h2 { font-size: 20px; }
+h3 { font-size: 16px; }
+h4 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-2); }
+p { margin: 0; }
+button, input, select, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.num, .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+/* Header */
+.top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 20px; }
+.brand { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.sync { font: 400 12px var(--font-mono); color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.sync::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--muted); }
+.sync[data-state="live"]::before { background: var(--good); }
+.sync[data-state="saving"]::before { background: var(--warn); }
+.sync[data-state="error"]::before, .sync[data-state="none"]::before { background: var(--bad); }
+.tabs { display: flex; gap: 2px; padding: 3px; background: var(--surface-2); border-radius: 9px; }
+.tab {
+  padding: 6px 14px; border-radius: 7px; text-decoration: none; color: var(--ink-2);
+  font: 500 14px var(--font-body);
+}
+.tab[aria-current="page"] { background: var(--surface); color: var(--ink); box-shadow: 0 0 0 1px var(--line); }
+
+.banner {
+  padding: 10px 14px; border-radius: 8px; background: var(--warn-bg); color: var(--warn);
+  border: 1px solid var(--line); font-weight: 500;
+}
+.banner[data-tone="bad"] { background: var(--bad-bg); color: var(--bad); }
+
+/* Buttons and fields */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 7px 14px; border-radius: 8px; border: 1px solid var(--line-strong);
+  background: var(--surface); color: var(--ink); font-weight: 500; cursor: pointer; white-space: nowrap;
+}
+.btn:hover { background: var(--surface-2); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn.primary:hover { opacity: 0.9; }
+.btn.ghost { background: transparent; }
+.btn.danger { color: var(--bad); }
+.btn[disabled] { opacity: 0.45; cursor: not-allowed; }
+.icon-btn {
+  width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--line-strong);
+  background: var(--surface); cursor: pointer; font-size: 18px; line-height: 1; display: grid; place-items: center;
+}
+.icon-btn:hover { background: var(--surface-2); }
+input[type="text"], input[type="number"], input[type="date"], select, textarea {
+  background: var(--surface); border: 1px solid var(--line-strong); border-radius: 7px;
+  padding: 7px 9px; min-width: 0;
+}
+textarea { width: 100%; resize: vertical; }
+label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--ink-2); font-weight: 500; }
+label.check { flex-direction: row; align-items: center; gap: 8px; font-size: 14px; color: var(--ink); font-weight: 400; }
+.fields { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
+.form-msg { font-size: 13px; color: var(--ink-2); min-height: 1.3em; }
+.form-msg[data-tone="bad"] { color: var(--bad); }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; }
+
+/* Week bar */
+.view { display: flex; flex-direction: column; gap: 16px; }
+.weekbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+.weeknav { display: flex; align-items: center; gap: 10px; }
+.weeklabel { display: flex; flex-direction: column; min-width: 0; }
+.wk { font: 500 12px var(--font-mono); color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; }
+.wkdates { font: 600 21px var(--font-display); }
+.weektools { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; }
+
+/* Setup */
+.setup { display: flex; flex-direction: column; gap: 10px; }
+.setup p { color: var(--ink-2); max-width: 62ch; }
+
+/* Commitment meters */
+.summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; }
+.meter { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.meter-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.pname-line { display: flex; align-items: center; gap: 8px; min-width: 0; font-weight: 600; }
+.pname-line span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sw { width: 12px; height: 12px; border-radius: 3px; background: var(--fill, var(--s0)); flex: none; }
+.meter-fig { display: flex; align-items: baseline; gap: 6px; }
+.meter-fig .big { font: 500 26px var(--font-mono); font-variant-numeric: tabular-nums; }
+.meter-fig .of { color: var(--ink-2); }
+.bar { position: relative; height: 8px; background: var(--surface-2); border-radius: 4px; }
+.bar > i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 4px; background: var(--fill, var(--s0)); }
+.bar > b { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--ink); border-radius: 1px; }
+.meter-total .big { font: 500 26px var(--font-mono); }
+.meter-sub { font-size: 12px; color: var(--ink-2); }
+
+.chip {
+  display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px;
+  font: 500 12px var(--font-body); white-space: nowrap; background: var(--surface-2); color: var(--ink-2);
+}
+.chip.k-met { background: var(--good-bg); color: var(--good); }
+.chip.k-short { background: var(--bad-bg); color: var(--bad); }
+.chip.k-progress { background: var(--warn-bg); color: var(--warn); }
+
+/* Paint bar */
+.paintbar { display: flex; flex-direction: column; gap: 8px; }
+.brushes { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.brush-label { font-size: 12px; color: var(--ink-2); font-weight: 500; margin-right: 4px; }
+.brush {
+  display: inline-flex; align-items: center; gap: 7px; padding: 6px 12px 6px 9px; border-radius: 999px;
+  border: 1px solid var(--line-strong); background: var(--surface); cursor: pointer; font-weight: 500; max-width: 100%;
+}
+.brush span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.brush[aria-pressed="true"] { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+.brush .sw.erase { background: repeating-linear-gradient(135deg, var(--line-strong) 0 2px, transparent 2px 5px); border: 1px solid var(--line-strong); }
+.hint { font-size: 13px; color: var(--ink-2); }
+
+/* The week grid */
+.gridwrap {
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+  overflow: auto; max-height: min(68vh, 760px); overscroll-behavior: contain;
+}
+.grid {
+  display: grid; grid-template-columns: 54px repeat(7, minmax(0, 1fr));
+  grid-auto-rows: var(--row); user-select: none; -webkit-user-select: none; min-width: 0;
+}
+.gh {
+  position: sticky; top: 0; z-index: 3; background: var(--surface); height: auto;
+  border-bottom: 1px solid var(--line-strong); padding: 8px 6px 7px; display: flex; flex-direction: column;
+  align-items: center; gap: 1px; grid-row: 1; min-width: 0;
+}
+.grid { grid-template-rows: auto; }
+.gh .dn { font: 600 13px var(--font-display); text-transform: uppercase; letter-spacing: 0.06em; }
+.gh .dd { font-size: 12px; color: var(--ink-2); }
+.gh .dt { font: 500 12px var(--font-mono); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.gh.today .dn, .gh.today .dd { color: var(--focus); }
+.gh.corner { align-items: flex-start; justify-content: flex-end; }
+.gh.corner span { font: 500 10px var(--font-mono); color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+.tl {
+  font: 400 11px var(--font-mono); color: var(--muted); padding: 2px 6px 0 0; text-align: right;
+  border-top: 1px solid var(--line); white-space: nowrap;
+}
+.tl.half { border-top-color: transparent; }
+.cell {
+  position: relative; border-top: 1px solid var(--line); border-left: 1px solid var(--line);
+  cursor: crosshair; min-width: 0;
+}
+.cell.half { border-top: 1px dashed var(--line); }
+.cell.today { background: var(--today); }
+.cell.f::before {
+  content: ""; position: absolute; left: 2px; right: 2px; top: 1px; bottom: 1px;
+  background: var(--fill); border-radius: 0;
+}
+.cell.f.rs::before { border-top-left-radius: 4px; border-top-right-radius: 4px; top: 2px; }
+.cell.f.re::before { border-bottom-left-radius: 4px; border-bottom-right-radius: 4px; bottom: 1px; }
+.cell.f:not(.rs)::before { top: -1px; }
+.cell.f:not(.re)::before { bottom: 0; }
+.cell .lab {
+  position: absolute; left: 6px; right: 4px; top: 3px; z-index: 1;
+  font: 500 11px/1.3 var(--font-body); color: var(--lab, var(--ink));
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none;
+}
+.grid.readonly .cell { cursor: default; }
+.grid.dragging { cursor: crosshair; }
+
+/* Below grid */
+.below { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+@media (min-width: 880px) { .below { grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); } }
+.below .panel { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.copyrow { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+
+/* Audit */
+.auditbar { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px; }
+.exports { display: flex; flex-wrap: wrap; gap: 8px; }
+.fine { font-size: 12px; color: var(--muted); max-width: 75ch; }
+.year-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; }
+.ys { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.ys dl { margin: 0; display: grid; grid-template-columns: auto auto; gap: 4px 12px; }
+.ys dt { color: var(--ink-2); font-size: 13px; }
+.ys dd { margin: 0; text-align: right; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.pos { color: var(--good); }
+.neg { color: var(--bad); }
+.tablewrap {
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+  overflow: auto; max-height: 72vh;
+}
+table.audit { border-collapse: separate; border-spacing: 0; width: 100%; font-size: 13px; }
+.audit th, .audit td { padding: 7px 10px; text-align: left; border-bottom: 1px solid var(--line); white-space: nowrap; vertical-align: middle; }
+.audit thead th { position: sticky; top: 0; z-index: 2; background: var(--surface); border-bottom: 1px solid var(--line-strong); font-weight: 600; }
+.audit thead th small { display: block; font-weight: 400; color: var(--muted); font-size: 11px; }
+.audit th .pname-line { font-weight: 600; }
+.audit tfoot td { position: sticky; bottom: 0; background: var(--surface-2); font-weight: 600; border-top: 1px solid var(--line-strong); }
+.audit td.n { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.audit td .of { color: var(--muted); }
+.audit td.note { white-space: normal; min-width: 180px; max-width: 320px; color: var(--ink-2); }
+.audit tr.cur td { background: var(--today); }
+.audit tr.empty-week td.n { color: var(--muted); }
+.linkish { background: none; border: 0; padding: 0; color: var(--focus); cursor: pointer; font: 500 13px var(--font-mono); text-decoration: underline; text-underline-offset: 2px; }
+.cellstat { display: flex; align-items: center; gap: 8px; }
+.export-fallback { display: flex; flex-direction: column; gap: 8px; }
+.export-fallback textarea { font: 12px var(--font-mono); min-height: 160px; }
+
+/* Projects */
+.project-list { display: flex; flex-direction: column; gap: 12px; }
+.pcard { display: flex; flex-direction: column; gap: 14px; }
+.pcard-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.pcard-head input { font: 600 17px var(--font-display); flex: 1 1 220px; }
+.ptotal { font-size: 13px; color: var(--ink-2); }
+.colors { display: flex; flex-wrap: wrap; gap: 6px; }
+.cswatch {
+  width: 26px; height: 26px; border-radius: 6px; border: 2px solid transparent; background: var(--fill);
+  cursor: pointer; box-shadow: inset 0 0 0 2px var(--surface);
+}
+.cswatch[aria-checked="true"] { border-color: var(--ink); }
+.ttable { display: flex; flex-direction: column; gap: 8px; }
+.trow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.trow input[type="number"] { width: 84px; }
+.trow .unit { color: var(--ink-2); }
+.pcard-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+.archived-tag { font-size: 12px; color: var(--muted); }
+.empty-note { color: var(--ink-2); }
+
+@media (max-width: 560px) {
+  :root { --row: 21px; }
+  .grid { grid-template-columns: 40px repeat(7, minmax(0, 1fr)); }
+  .tl { font-size: 10px; padding-right: 3px; }
+  .gh { padding-inline: 2px; }
+  .gh .dn { font-size: 12px; }
+  .cell .lab { left: 3px; font-size: 10px; }
+  .wkdates { font-size: 18px; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .bar > i { transition: width 0.25s ease; }
+}
+</style>
+
+<div class="app">
+  <header class="top">
+    <div class="brand">
+      <h1>Project Hours Ledger</h1>
+      <p class="sync" id="syncStatus" data-state="connecting">Connecting to your saved hours…</p>
+    </div>
+    <nav class="tabs" aria-label="Views">
+      <a class="tab" href="#week" data-view="week">Week</a>
+      <a class="tab" href="#audit" data-view="audit">Year audit</a>
+      <a class="tab" href="#projects" data-view="projects">Projects</a>
+    </nav>
+  </header>
+
+  <div class="banner" id="banner" role="status" hidden></div>
+
+  <main>
+    <!-- WEEK -->
+    <section class="view" id="view-week">
+      <div class="weekbar">
+        <div class="weeknav">
+          <button class="icon-btn" id="prevWeek" type="button" aria-label="Previous week">‹</button>
+          <div class="weeklabel">
+            <span class="wk" id="wkNum">Week</span>
+            <span class="wkdates" id="wkDates"></span>
+          </div>
+          <button class="icon-btn" id="nextWeek" type="button" aria-label="Next week">›</button>
+        </div>
+        <div class="weektools">
+          <button class="btn ghost" id="thisWeek" type="button">This week</button>
+          <label>Go to week of <input type="date" id="jumpDate"></label>
+        </div>
+      </div>
+
+      <div class="panel setup" id="setupCard" hidden>
+        <h2>Add the projects you've committed to</h2>
+        <p>Give each project its weekly target. Weeks before the target's start date aren't counted against it. You can add more projects and change targets later under Projects.</p>
+        <form id="setupForm" class="fields">
+          <label>Project name <input type="text" id="setupName" required maxlength="40" placeholder="e.g. Client retainer"></label>
+          <label>Hours per week <input type="number" id="setupHours" required min="0" max="168" step="0.5" placeholder="10"></label>
+          <label>Target starts week of <input type="date" id="setupFrom" required></label>
+          <button class="btn primary" type="submit">Add project</button>
+        </form>
+        <p class="form-msg" id="setupMsg" role="status"></p>
+      </div>
+
+      <div class="summary" id="weekSummary"></div>
+
+      <div class="paintbar" id="paintbar">
+        <div class="brushes" id="brushes" role="group" aria-label="Paint with"></div>
+        <p class="hint" id="paintHint">Pick a project, then drag across the grid to log time. Each cell is 30 minutes. Dragging from a cell already in that project's colour clears the range.</p>
+      </div>
+
+      <div class="gridwrap" id="gridWrap">
+        <div class="grid" id="grid" aria-label="Week grid, Monday to Sunday, in 30-minute cells"></div>
+      </div>
+
+      <div class="below">
+        <form class="panel" id="blockForm">
+          <h3>Log a block</h3>
+          <div class="fields">
+            <label>Day <select id="bfDay"></select></label>
+            <label>From <select id="bfFrom"></select></label>
+            <label>To <select id="bfTo"></select></label>
+            <label>Project <select id="bfProject"></select></label>
+            <button class="btn primary" type="submit">Log block</button>
+          </div>
+          <p class="form-msg" id="bfMsg" role="status"></p>
+        </form>
+        <div class="panel" id="weekMeta">
+          <h3>Week notes</h3>
+          <textarea id="weekNote" rows="3" placeholder="What you worked on, and anything you'd want to remember at audit time"></textarea>
+          <label class="check"><input type="checkbox" id="weekWaived"> Commitments waived this week (leave, holiday)</label>
+          <div class="copyrow">
+            <button class="btn" id="copyPrev" type="button">Copy last week's blocks</button>
+            <span class="form-msg" id="copyMsg" role="status"></span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- AUDIT -->
+    <section class="view" id="view-audit" hidden>
+      <div class="auditbar">
+        <label>Year <select id="auditYear"></select></label>
+        <div class="exports">
+          <button class="btn" id="expWeekly" type="button">Weekly summary (CSV)</button>
+          <button class="btn" id="expBlocks" type="button">Time blocks (CSV)</button>
+          <button class="btn ghost" id="expJson" type="button">Full backup (JSON)</button>
+        </div>
+      </div>
+      <p class="form-msg" id="expMsg" role="status"></p>
+      <div class="panel export-fallback" id="exportFallback" hidden>
+        <p>Downloads aren't available in this view. Copy the text below into a file instead.</p>
+        <textarea id="exportText" readonly></textarea>
+        <div><button class="btn" id="copyExport" type="button">Copy to clipboard</button></div>
+      </div>
+      <div class="year-summary" id="yearSummary"></div>
+      <div class="tablewrap"><table class="audit" id="auditTable"></table></div>
+      <p class="fine">Weeks run Monday to Sunday and are numbered by ISO 8601, so a week belongs to the year that contains its Thursday. Committed hours and the balance count completed weeks only; the current week is shown as in progress. A target applies from the week it starts until a later target replaces it.</p>
+    </section>
+
+    <!-- PROJECTS -->
+    <section class="view" id="view-projects" hidden>
+      <div class="project-list" id="projectList"></div>
+      <form class="panel" id="addProjectForm">
+        <h3>Add a project</h3>
+        <div class="fields">
+          <label>Name <input type="text" id="apName" required maxlength="40"></label>
+          <label>Hours per week <input type="number" id="apHours" required min="0" max="168" step="0.5"></label>
+          <label>Target starts week of <input type="date" id="apFrom" required></label>
+          <button class="btn primary" type="submit">Add project</button>
+        </div>
+        <p class="form-msg" id="apMsg" role="status"></p>
+      </form>
+      <p class="fine">To end a commitment, add a target of 0 hours from the week it ends. Archiving a project only hides it from the paint palette; its hours and targets stay in the audit. A project can be deleted only while it has no hours logged.</p>
+    </section>
+  </main>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ---------- constants and helpers ---------- */
+  const SLOTS = 48, DAYS = 7, MAX_PROJECTS = 8;
+  const DELETE = Symbol('delete');
+  const $ = (s, r) => (r || document).querySelector(s);
+  const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const pad = (n) => String(n).padStart(2, '0');
+
+  const ymd = (d) => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+  const parseYmd = (s) => { const [y, m, d] = String(s).split('-').map(Number); return new Date(y, (m || 1) - 1, d || 1); };
+  const addDays = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
+  const mondayOf = (d) => { const x = new Date(d.getFullYear(), d.getMonth(), d.getDate()); return addDays(x, -((x.getDay() + 6) % 7)); };
+  const mondayId = (d) => ymd(mondayOf(d));
+  const isValidYmd = (s) => /^\d{4}-\d{2}-\d{2}$/.test(String(s)) && !isNaN(parseYmd(s));
+  const thisMonday = () => mondayId(new Date());
+  function isoInfo(id) {
+    const m = parseYmd(id), thu = addDays(m, 3), year = thu.getFullYear();
+    const w1 = mondayOf(new Date(year, 0, 4));
+    return { year, week: 1 + Math.round((m - w1) / (7 * 864e5)) };
+  }
+  function weeksOfYear(year) {
+    const out = []; let m = mondayOf(new Date(year, 0, 4));
+    while (addDays(m, 3).getFullYear() === year) { out.push(ymd(m)); m = addDays(m, 7); }
+    return out;
+  }
+  function phase(weekId) { const t = thisMonday(); return weekId < t ? 'past' : weekId === t ? 'current' : 'future'; }
+
+  const fmtDay = new Intl.DateTimeFormat(undefined, { weekday: 'short' });
+  const fmtDM = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short' });
+  const fmtDMY = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+  const fmtHour = new Intl.DateTimeFormat(undefined, { hour: 'numeric' });
+  const fmtHM = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' });
+  const slotLabel = (s) => s >= SLOTS ? 'Midnight (end of day)' : fmtHM.format(new Date(2000, 0, 1, Math.floor(s / 2), (s % 2) * 30));
+  const hourLabel = (h) => fmtHour.format(new Date(2000, 0, 1, h));
+  const hhmm = (s) => pad(Math.floor(s / 2)) + ':' + (s % 2 ? '30' : '00');
+  const fmtH = (h) => (Math.round(h * 10) / 10).toLocaleString(undefined, { maximumFractionDigits: 1 });
+  const fmtSigned = (h) => (h > 0 ? '+' : h < 0 ? '−' : '') + fmtH(Math.abs(h));
+  function rangeLabel(weekId) {
+    const a = parseYmd(weekId), b = addDays(a, 6);
+    try { return fmtDMY.formatRange(a, b); } catch (e) { return fmtDM.format(a) + ' – ' + fmtDMY.format(b); }
+  }
+  function shortRange(weekId) {
+    const a = parseYmd(weekId), b = addDays(a, 6);
+    try { return fmtDM.formatRange(a, b); } catch (e) { return fmtDM.format(a) + ' – ' + fmtDM.format(b); }
+  }
+  const key = (d, s) => d + '-' + s;
+
+  /* ---------- state ---------- */
+  const state = {
+    db: null, downloads: null, readOnly: false, storage: 'connecting',
+    projects: [], weeks: new Map(), projLoaded: false, weeksLoaded: false,
+    view: 'week', weekId: thisMonday(), brush: null, year: isoInfo(thisMonday()).year,
+  };
+  const dirty = new Set();
+  const writers = new Map();
+  let saveError = null;
+
+  const projById = (id) => state.projects.find((p) => p.id === id);
+  const activeProjects = () => state.projects.filter((p) => !p.archived);
+  const sortProjects = (list) => list.slice().sort((a, b) => (a.order || 0) - (b.order || 0) || String(a.name).localeCompare(String(b.name)));
+  function getWeek(id) {
+    const w = state.weeks.get(id);
+    return {
+      weekStart: id,
+      slots: (w && w.slots && typeof w.slots === 'object') ? w.slots : {},
+      note: (w && typeof w.note === 'string') ? w.note : '',
+      waived: !!(w && w.waived),
+    };
+  }
+  function weekHours(w) {
+    const h = {}; let total = 0;
+    for (const pid of Object.values(w.slots)) { h[pid] = (h[pid] || 0) + 0.5; total += 0.5; }
+    return { h, total };
+  }
+  function sortedTargets(p) {
+    return (Array.isArray(p.targets) ? p.targets : [])
+      .filter((t) => t && isValidYmd(t.from))
+      .map((t) => ({ from: t.from, hours: Math.max(0, Number(t.hours) || 0) }))
+      .sort((a, b) => (a.from < b.from ? -1 : a.from > b.from ? 1 : 0));
+  }
+  function targetFor(p, weekId) {
+    let t = null;
+    for (const e of sortedTargets(p)) { if (e.from <= weekId) t = e.hours; else break; }
+    return t;
+  }
+  function statusFor(p, weekId, hours, w) {
+    const target = targetFor(p, weekId), ph = phase(weekId);
+    if (target === null || target <= 0) return { kind: 'none', target: target || 0, label: 'No target', short: '—' };
+    if (w.waived) return { kind: 'waived', target, label: 'Waived', short: 'Waived' };
+    if (ph === 'future') return { kind: 'future', target, label: 'Upcoming', short: 'Upcoming' };
+    if (hours >= target) {
+      const over = hours - target;
+      return { kind: 'met', target, label: over > 0 ? '✓ Met, ' + fmtSigned(over) + ' h' : '✓ Met', short: '✓ Met' };
+    }
+    const gap = target - hours;
+    if (ph === 'current') return { kind: 'progress', target, gap, label: fmtH(gap) + ' h to go', short: fmtH(gap) + ' h to go' };
+    return { kind: 'short', target, gap, label: '✕ Short ' + fmtH(gap) + ' h', short: '✕ −' + fmtH(gap) };
+  }
+  const fillVar = (p) => 'var(--s' + (p ? (p.slot | 0) + 1 : 0) + ')';
+  const inkVar = (p) => 'var(--on-s' + (p ? (p.slot | 0) + 1 : 0) + ')';
+
+  /* ---------- persistence ---------- */
+  function save(path, body) {
+    if (!state.db || state.readOnly) return;
+    dirty.add(path);
+    let w = writers.get(path);
+    if (!w) { w = { running: false, next: undefined }; writers.set(path, w); }
+    w.next = body === null ? DELETE : body;
+    if (!w.running) pump(path, w);
+    updateSync();
+  }
+  async function pump(path, w) {
+    w.running = true; updateSync();
+    while (w.next !== undefined) {
+      const body = w.next; w.next = undefined;
+      const ref = state.db.doc(path);
+      const op = () => (body === DELETE ? ref.delete() : ref.set(body));
+      try { await op(); saveError = null; }
+      catch (e) {
+        if (e && e.code === 'unavailable') {
+          await sleep(700 + Math.random() * 1300);
+          try { await op(); saveError = null; } catch (e2) { writeFailed(e2); }
+        } else writeFailed(e);
+      }
+    }
+    w.running = false; dirty.delete(path); updateSync();
+  }
+  function writeFailed(e) {
+    const code = e && e.code;
+    if (code === 'invalid_argument' || code === 'not_granted') {
+      state.readOnly = true;
+      saveError = 'This ledger is view-only for you, so changes aren’t saved. Only its owner can log hours.';
+    } else if (code === 'quota_exceeded') {
+      saveError = 'Storage for this ledger is full, so the last change wasn’t saved. Export a backup from Year audit, then delete projects or weeks you no longer need.';
+    } else if (code === 'revoked') {
+      saveError = 'Saved data isn’t available in this view any more. Your last change wasn’t saved.';
+    } else {
+      saveError = 'Your last change couldn’t be saved. Check your connection, then make the change again.';
+    }
+    renderAll();
+  }
+  function updateSync() {
+    const el = $('#syncStatus');
+    const busy = [...writers.values()].some((w) => w.running);
+    let text, st;
+    if (state.storage === 'none') { text = 'Not saving: storage unavailable here'; st = 'none'; }
+    else if (state.storage === 'error') { text = 'Disconnected from saved data'; st = 'error'; }
+    else if (busy) { text = 'Saving…'; st = 'saving'; }
+    else if (state.storage === 'connecting') { text = 'Connecting to your saved hours…'; st = 'connecting'; }
+    else if (state.storage === 'stale') { text = 'Waiting for saved data…'; st = 'saving'; }
+    else if (saveError) { text = 'Last change not saved'; st = 'error'; }
+    else { text = state.readOnly ? 'View only' : 'All changes saved'; st = 'live'; }
+    el.textContent = text; el.dataset.state = st;
+  }
+  function renderBanner() {
+    const b = $('#banner'); let msg = '', tone = 'warn';
+    if (saveError) { msg = saveError; tone = 'bad'; }
+    else if (state.storage === 'none') { msg = 'Saving isn’t available in this view. Open this ledger on claude.ai to record hours; anything entered here is lost when the page closes.'; tone = 'bad'; }
+    else if (state.storage === 'error') { msg = 'Lost the connection to your saved hours. Reload the page to reconnect; changes made now won’t be kept.'; tone = 'bad'; }
+    else if (state.storage === 'stale') { msg = 'Can’t reach your saved hours yet. What’s shown may be out of date. Keep the page open and it will keep trying.'; }
+    else if (state.readOnly) { msg = 'View only. Only the owner of this ledger can log hours.'; }
+    b.hidden = !msg; b.textContent = msg; b.dataset.tone = tone;
+  }
+  function subscribe() {
+    const db = state.db; let okP = false, okW = false;
+    const timer = setTimeout(() => { if (!(okP && okW) && state.storage === 'connecting') { state.storage = 'stale'; renderAll(); } }, 10000);
+    const settle = () => { if (okP && okW) { clearTimeout(timer); if (state.storage === 'connecting' || state.storage === 'stale') state.storage = 'live'; } };
+    const fail = () => { clearTimeout(timer); state.storage = 'error'; renderAll(); };
+
+    db.collection('projects').onSnapshot((snap) => {
+      const list = [], seen = new Set();
+      for (const d of snap.docs) {
+        seen.add(d.id);
+        if (dirty.has('projects/' + d.id)) { const local = projById(d.id); if (local) list.push(local); continue; }
+        const data = d.data() || {};
+        list.push(Object.assign({}, data, { id: d.id, slot: Number.isInteger(data.slot) ? data.slot : 0 }));
+      }
+      for (const p of state.projects) if (dirty.has('projects/' + p.id) && !seen.has(p.id)) list.push(p);
+      state.projects = sortProjects(list); state.projLoaded = true;
+      if (!snap.metadata.fromCache) { okP = true; settle(); }
+      onData();
+    }, fail);
+
+    db.collection('weeks').onSnapshot((snap) => {
+      const next = new Map(), seen = new Set();
+      for (const d of snap.docs) {
+        seen.add(d.id);
+        if (dirty.has('weeks/' + d.id)) { if (state.weeks.has(d.id)) next.set(d.id, state.weeks.get(d.id)); continue; }
+        next.set(d.id, d.data() || {});
+      }
+      for (const [id, w] of state.weeks) if (dirty.has('weeks/' + id) && !seen.has(id)) next.set(id, w);
+      state.weeks = next; state.weeksLoaded = true;
+      if (!snap.metadata.fromCache) { okW = true; settle(); }
+      onData();
+    }, fail);
+  }
+  function onData() {
+    const act = activeProjects();
+    if (state.brush !== 'erase' && !act.some((p) => p.id === state.brush)) state.brush = act.length ? act[0].id : 'erase';
+    renderAll();
+  }
+
+  /* ---------- week mutations ---------- */
+  function writeWeek(id, patch) {
+    if (state.readOnly) return;
+    const cur = getWeek(id);
+    const next = { weekStart: id, slots: cur.slots, note: cur.note, waived: cur.waived, ...patch, updatedAt: new Date().toISOString() };
+    state.weeks.set(id, next);
+    save('weeks/' + id, next);
+  }
+  const sameSlots = (a, b) => { const ka = Object.keys(a), kb = Object.keys(b); return ka.length === kb.length && ka.every((k) => a[k] === b[k]); };
+
+  /* ---------- grid ---------- */
+  const grid = $('#grid'), gridWrap = $('#gridWrap');
+  const cells = [], heads = [];
+  function buildGrid() {
+    const frag = document.createDocumentFragment();
+    const corner = document.createElement('div'); corner.className = 'gh corner'; corner.innerHTML = '<span>Time</span>';
+    frag.append(corner);
+    for (let d = 0; d < DAYS; d++) {
+      const h = document.createElement('div'); h.className = 'gh';
+      h.innerHTML = '<span class="dn"></span><span class="dd"></span><span class="dt"></span>';
+      heads.push(h); frag.append(h); cells.push([]);
+    }
+    for (let s = 0; s < SLOTS; s++) {
+      const t = document.createElement('div'); t.className = 'tl' + (s % 2 ? ' half' : '');
+      t.textContent = s % 2 ? '' : hourLabel(s / 2); frag.append(t);
+      for (let d = 0; d < DAYS; d++) {
+        const c = document.createElement('div'); c.className = 'cell' + (s % 2 ? ' half' : '');
+        c.dataset.d = d; c.dataset.s = s;
+        const lab = document.createElement('span'); lab.className = 'lab'; c.append(lab);
+        cells[d][s] = c; frag.append(c);
+      }
+    }
+    grid.append(frag);
+  }
+  function paintCells(slots) {
+    const todayIdx = (() => { const t = ymd(new Date()); for (let d = 0; d < DAYS; d++) if (ymd(addDays(parseYmd(state.weekId), d)) === t) return d; return -1; })();
+    for (let d = 0; d < DAYS; d++) {
+      for (let s = 0; s < SLOTS; s++) {
+        const c = cells[d][s], pid = slots[key(d, s)], lab = c.firstChild;
+        c.classList.toggle('today', d === todayIdx);
+        if (pid) {
+          const p = projById(pid);
+          const rs = slots[key(d, s - 1)] !== pid, re = slots[key(d, s + 1)] !== pid;
+          c.classList.add('f'); c.classList.toggle('rs', rs); c.classList.toggle('re', re);
+          c.style.setProperty('--fill', fillVar(p)); c.style.setProperty('--lab', inkVar(p));
+          let txt = '';
+          if (rs) {
+            let n = 1; while (s + n < SLOTS && slots[key(d, s + n)] === pid) n++;
+            const name = p ? p.name : 'Removed project';
+            txt = n >= 2 ? name + ' · ' + fmtH(n / 2) + ' h' : name;
+          }
+          if (lab.textContent !== txt) lab.textContent = txt;
+          c.title = (p ? p.name : 'Removed project') + ', ' + slotLabel(s) + '–' + slotLabel(s + 1);
+        } else {
+          c.classList.remove('f', 'rs', 're'); c.style.removeProperty('--fill'); c.style.removeProperty('--lab');
+          if (lab.textContent) lab.textContent = '';
+          c.removeAttribute('title');
+        }
+      }
+    }
+    // day headers
+    const monday = parseYmd(state.weekId);
+    for (let d = 0; d < DAYS; d++) {
+      let n = 0; for (let s = 0; s < SLOTS; s++) if (slots[key(d, s)]) n++;
+      const date = addDays(monday, d), h = heads[d];
+      h.classList.toggle('today', d === todayIdx);
+      h.children[0].textContent = fmtDay.format(date);
+      h.children[1].textContent = fmtDM.format(date);
+      h.children[2].textContent = n ? fmtH(n / 2) + ' h' : '–';
+    }
+  }
+  function rowHeight() { return cells[0][1].offsetTop - cells[0][0].offsetTop || 22; }
+  function scrollToWork() {
+    const slots = getWeek(state.weekId).slots; let first = 14; // 7:00
+    for (const k of Object.keys(slots)) { const s = +k.split('-')[1]; if (s < first) first = s; }
+    gridWrap.scrollTop = Math.max(0, (first - 1) * rowHeight());
+  }
+
+  let drag = null, tap = null;
+  function cellAt(x, y) { const t = document.elementFromPoint(x, y); return t && t.closest ? t.closest('.cell') : null; }
+  function canPaint() { return !state.readOnly && state.projects.length > 0; }
+  function applyDrag() {
+    const slots = Object.assign({}, drag.base);
+    const d0 = Math.min(drag.a.d, drag.b.d), d1 = Math.max(drag.a.d, drag.b.d);
+    const s0 = Math.min(drag.a.s, drag.b.s), s1 = Math.max(drag.a.s, drag.b.s);
+    for (let d = d0; d <= d1; d++) for (let s = s0; s <= s1; s++) {
+      if (drag.mode === 'paint') slots[key(d, s)] = drag.brush; else delete slots[key(d, s)];
+    }
+    drag.slots = slots; paintCells(slots);
+  }
+  function commitSlots(slots, base) {
+    if (sameSlots(slots, base)) { paintCells(base); return; }
+    writeWeek(state.weekId, { slots });
+    renderWeek();
+  }
+  grid.addEventListener('pointerdown', (e) => {
+    const c = e.target.closest('.cell'); if (!c || !canPaint()) return;
+    const d = +c.dataset.d, s = +c.dataset.s;
+    if (e.pointerType === 'touch') { tap = { id: e.pointerId, x: e.clientX, y: e.clientY, d, s }; return; }
+    if (e.button !== 0) return;
+    e.preventDefault();
+    const base = Object.assign({}, getWeek(state.weekId).slots);
+    const brush = state.brush;
+    const mode = (brush === 'erase' || base[key(d, s)] === brush) ? 'erase' : 'paint';
+    drag = { pointerId: e.pointerId, base, mode, brush, a: { d, s }, b: { d, s }, slots: base };
+    grid.classList.add('dragging');
+    try { grid.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+    applyDrag();
+  });
+  grid.addEventListener('pointermove', (e) => {
+    if (tap && e.pointerId === tap.id && Math.hypot(e.clientX - tap.x, e.clientY - tap.y) > 8) tap = null;
+    if (!drag || e.pointerId !== drag.pointerId) return;
+    const r = gridWrap.getBoundingClientRect();
+    if (e.clientY > r.bottom - 28) gridWrap.scrollTop += 12; else if (e.clientY < r.top + 60) gridWrap.scrollTop -= 12;
+    const c = cellAt(e.clientX, e.clientY); if (!c) return;
+    const d = +c.dataset.d, s = +c.dataset.s;
+    if (d === drag.b.d && s === drag.b.s) return;
+    drag.b = { d, s }; applyDrag();
+  });
+  function endDrag(commit) {
+    if (!drag) return;
+    const dd = drag; drag = null; grid.classList.remove('dragging');
+    if (commit) commitSlots(dd.slots, dd.base); else paintCells(dd.base);
+  }
+  grid.addEventListener('pointerup', (e) => {
+    if (drag && e.pointerId === drag.pointerId) { endDrag(true); return; }
+    if (tap && e.pointerId === tap.id) {
+      const { d, s } = tap; tap = null;
+      const base = Object.assign({}, getWeek(state.weekId).slots), slots = Object.assign({}, base), k = key(d, s);
+      if (state.brush === 'erase' || slots[k] === state.brush) delete slots[k]; else slots[k] = state.brush;
+      commitSlots(slots, base);
+    }
+  });
+  grid.addEventListener('pointercancel', (e) => { tap = null; if (drag && e.pointerId === drag.pointerId) endDrag(false); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && drag) endDrag(false); });
+
+  /* ---------- week view ---------- */
+  function renderWeek() {
+    const id = state.weekId, info = isoInfo(id), w = getWeek(id), { h, total } = weekHours(w);
+    $('#wkNum').textContent = 'Week ' + info.week + ' · ' + info.year + (phase(id) === 'current' ? ' · this week' : '');
+    $('#wkDates').textContent = rangeLabel(id);
+    $('#thisWeek').disabled = id === thisMonday();
+
+    const hasProjects = state.projects.length > 0;
+    const loaded = state.projLoaded || state.storage === 'none';
+    $('#setupCard').hidden = !(loaded && !hasProjects && !state.readOnly);
+    if (!$('#setupFrom').value) $('#setupFrom').value = thisMonday();
+
+    // commitment meters
+    const shown = state.projects.filter((p) => !p.archived || h[p.id]);
+    let html = '';
+    for (const p of shown) {
+      const hours = h[p.id] || 0, st = statusFor(p, id, hours, w), t = st.target;
+      const scale = Math.max(t, hours, 0.5), pct = (hours / scale) * 100, tick = t > 0 ? (t / scale) * 100 : null;
+      html += '<div class="panel meter">' +
+        '<div class="meter-head"><div class="pname-line"><span class="sw" style="--fill:' + fillVar(p) + '"></span><span>' + esc(p.name) + '</span></div>' +
+        '<span class="chip k-' + st.kind + '">' + esc(st.label) + '</span></div>' +
+        '<div class="meter-fig"><span class="big">' + fmtH(hours) + '</span><span class="of">' + (t > 0 ? 'of ' + fmtH(t) + ' h target' : 'h logged') + '</span></div>' +
+        '<div class="bar" role="img" aria-label="' + esc(fmtH(hours) + ' of ' + fmtH(t) + ' hours') + '"><i style="width:' + pct.toFixed(1) + '%;--fill:' + fillVar(p) + '"></i>' +
+        (tick !== null ? '<b style="left:calc(' + tick.toFixed(1) + '% - 1px)"></b>' : '') + '</div></div>';
+    }
+    if (shown.length) {
+      const other = Object.keys(h).filter((pid) => !projById(pid)).reduce((a, pid) => a + h[pid], 0);
+      html += '<div class="panel meter meter-total"><div class="meter-head"><span class="pname-line"><span>All projects</span></span>' +
+        (w.waived ? '<span class="chip k-waived">Waived week</span>' : '') + '</div>' +
+        '<div class="meter-fig"><span class="big">' + fmtH(total) + '</span><span class="of">h logged this week</span></div>' +
+        '<p class="meter-sub">' + (other ? fmtH(other) + ' h belong to removed projects.' : 'Across ' + shown.length + (shown.length === 1 ? ' project.' : ' projects.')) + '</p></div>';
+    }
+    $('#weekSummary').innerHTML = html;
+    $('#weekSummary').hidden = !shown.length;
+
+    // brushes
+    const act = activeProjects();
+    let bh = '<span class="brush-label">Paint with</span>';
+    for (const p of act) bh += '<button type="button" class="brush" data-brush="' + esc(p.id) + '" aria-pressed="' + (state.brush === p.id) + '"><span class="sw" style="--fill:' + fillVar(p) + '"></span><span>' + esc(p.name) + '</span></button>';
+    bh += '<button type="button" class="brush" data-brush="erase" aria-pressed="' + (state.brush === 'erase') + '"><span class="sw erase"></span><span>Eraser</span></button>';
+    $('#brushes').innerHTML = bh;
+    $('#paintbar').hidden = state.readOnly || !hasProjects;
+    grid.classList.toggle('readonly', !canPaint());
+
+    if (!drag) paintCells(w.slots);
+    renderBlockForm();
+
+    // meta
+    const note = $('#weekNote');
+    if (document.activeElement !== note && !noteTimer) note.value = w.note;
+    note.disabled = state.readOnly;
+    $('#weekWaived').checked = w.waived; $('#weekWaived').disabled = state.readOnly;
+    $('#copyPrev').disabled = state.readOnly || !hasProjects;
+    $('#blockForm').hidden = state.readOnly || !hasProjects;
+  }
+  let formWeek = null;
+  function renderBlockForm() {
+    const day = $('#bfDay'), from = $('#bfFrom'), to = $('#bfTo'), proj = $('#bfProject');
+    if (!from.options.length) {
+      let fo = '', tt = '';
+      for (let s = 0; s < SLOTS; s++) fo += '<option value="' + s + '">' + esc(slotLabel(s)) + '</option>';
+      for (let s = 1; s <= SLOTS; s++) tt += '<option value="' + s + '">' + esc(slotLabel(s)) + '</option>';
+      from.innerHTML = fo; to.innerHTML = tt; from.value = '18'; to.value = '20';
+    }
+    if (formWeek !== state.weekId) {
+      const prev = day.value; let o = ''; const m = parseYmd(state.weekId); const t = ymd(new Date()); let todayIdx = -1;
+      for (let d = 0; d < DAYS; d++) { const dt = addDays(m, d); if (ymd(dt) === t) todayIdx = d; o += '<option value="' + d + '">' + esc(fmtDay.format(dt) + ' ' + fmtDM.format(dt)) + '</option>'; }
+      day.innerHTML = o; day.value = todayIdx >= 0 ? String(todayIdx) : (prev || '0'); formWeek = state.weekId;
+    }
+    const pv = proj.value;
+    let po = '';
+    for (const p of activeProjects()) po += '<option value="' + esc(p.id) + '">' + esc(p.name) + '</option>';
+    po += '<option value="">Clear this time (erase)</option>';
+    if (proj.innerHTML !== po) proj.innerHTML = po;
+    const wanted = pv && [...proj.options].some((o) => o.value === pv) ? pv : (state.brush && state.brush !== 'erase' ? state.brush : (proj.options[0] ? proj.options[0].value : ''));
+    proj.value = wanted;
+  }
+
+  /* ---------- audit view ---------- */
+  function yearsAvailable() {
+    const cur = isoInfo(thisMonday()).year; let min = cur;
+    for (const [id, w] of state.weeks) if (w && w.slots && Object.keys(w.slots).length) min = Math.min(min, isoInfo(id).year);
+    for (const p of state.projects) for (const t of sortedTargets(p)) min = Math.min(min, isoInfo(mondayId(parseYmd(t.from))).year);
+    const out = []; for (let y = cur; y >= min; y--) out.push(y); return out;
+  }
+  function yearModel(year) {
+    const weeks = weeksOfYear(year).filter((id) => phase(id) !== 'future');
+    const rows = weeks.map((id) => { const w = getWeek(id); return { id, w, ...weekHours(w) }; });
+    const projects = state.projects.filter((p) => rows.some((r) => r.h[p.id] || (targetFor(p, r.id) || 0) > 0));
+    const sums = {};
+    for (const p of projects) {
+      const s = { logged: 0, committed: 0, loggedCounted: 0, met: 0, counted: 0 };
+      for (const r of rows) {
+        const hours = r.h[p.id] || 0, st = statusFor(p, r.id, hours, r.w);
+        s.logged += hours;
+        if (phase(r.id) === 'past' && (st.kind === 'met' || st.kind === 'short')) {
+          s.counted++; s.committed += st.target; s.loggedCounted += hours; if (st.kind === 'met') s.met++;
+        }
+      }
+      s.balance = s.loggedCounted - s.committed; sums[p.id] = s;
+    }
+    return { rows, projects, sums };
+  }
+  function renderAudit() {
+    const sel = $('#auditYear'), years = yearsAvailable();
+    if (!years.includes(state.year)) state.year = years[0];
+    const opts = years.map((y) => '<option value="' + y + '">' + y + '</option>').join('');
+    if (sel.innerHTML !== opts) sel.innerHTML = opts;
+    sel.value = String(state.year);
+
+    const { rows, projects, sums } = yearModel(state.year);
+    let ys = '';
+    for (const p of projects) {
+      const s = sums[p.id];
+      ys += '<div class="panel ys"><div class="pname-line"><span class="sw" style="--fill:' + fillVar(p) + '"></span><span>' + esc(p.name) + '</span>' + (p.archived ? '<span class="archived-tag">archived</span>' : '') + '</div>' +
+        '<div class="meter-fig"><span class="big">' + fmtH(s.logged) + '</span><span class="of">h logged in ' + state.year + '</span></div>' +
+        '<dl><dt>Committed, completed weeks</dt><dd>' + fmtH(s.committed) + ' h</dd>' +
+        '<dt>Logged in those weeks</dt><dd>' + fmtH(s.loggedCounted) + ' h</dd>' +
+        '<dt>Balance</dt><dd class="' + (s.balance >= 0 ? 'pos' : 'neg') + '">' + (s.balance >= 0 ? '▲ ' : '▼ ') + fmtSigned(s.balance) + ' h</dd>' +
+        '<dt>Weeks target met</dt><dd>' + s.met + ' of ' + s.counted + '</dd></dl></div>';
+    }
+    $('#yearSummary').innerHTML = ys || '<p class="empty-note">No commitments or hours recorded for ' + state.year + ' yet. Add projects with weekly targets under Projects, then log time in the Week view.</p>';
+
+    const t = $('#auditTable');
+    if (!rows.length || !projects.length) { t.innerHTML = ''; t.parentElement.hidden = true; return; }
+    t.parentElement.hidden = false;
+    let th = '<thead><tr><th>Week</th><th>Dates</th>';
+    for (const p of projects) th += '<th><div class="pname-line"><span class="sw" style="--fill:' + fillVar(p) + '"></span><span>' + esc(p.name) + '</span></div><small>logged / target</small></th>';
+    th += '<th>Total<small>all projects</small></th><th>Notes</th></tr></thead>';
+    let tb = '<tbody>';
+    for (const r of rows) {
+      const info = isoInfo(r.id), cur = phase(r.id) === 'current';
+      tb += '<tr class="' + (cur ? 'cur' : '') + (r.total ? '' : ' empty-week') + '"><td><button type="button" class="linkish" data-week="' + r.id + '">W' + pad(info.week) + '</button></td><td>' + esc(shortRange(r.id)) + '</td>';
+      for (const p of projects) {
+        const hours = r.h[p.id] || 0, st = statusFor(p, r.id, hours, r.w);
+        tb += '<td class="n"><div class="cellstat"><span>' + fmtH(hours) + (st.target > 0 ? '<span class="of"> / ' + fmtH(st.target) + '</span>' : '') + '</span>' +
+          (st.kind !== 'none' ? '<span class="chip k-' + st.kind + '">' + esc(st.short) + '</span>' : '') + '</div></td>';
+      }
+      tb += '<td class="n">' + fmtH(r.total) + '</td><td class="note">' + (r.w.waived ? '<span class="chip">Waived</span> ' : '') + esc(r.w.note) + '</td></tr>';
+    }
+    tb += '</tbody><tfoot><tr><td colspan="2">' + state.year + ' to date</td>';
+    let grand = 0;
+    for (const p of projects) { const s = sums[p.id]; grand += s.logged; tb += '<td class="n">' + fmtH(s.logged) + '<span class="of"> / ' + fmtH(s.committed) + '</span></td>'; }
+    tb += '<td class="n">' + fmtH(grand) + '</td><td></td></tr></tfoot>';
+    t.innerHTML = th + tb;
+  }
+
+  /* ---------- exports ---------- */
+  const csv = (rows) => rows.map((r) => r.map((v) => { const s = String(v == null ? '' : v); return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }).join(',')).join('\r\n') + '\r\n';
+  const statusCode = { met: 'met', short: 'short', progress: 'in_progress', waived: 'waived', none: 'no_target', future: 'upcoming' };
+  function weeklyCsv(year) {
+    const { rows, projects } = yearModel(year);
+    const out = [['week_start', 'week_end', 'iso_year', 'iso_week', 'project', 'hours_logged', 'weekly_target', 'status', 'commitments_waived', 'week_note']];
+    for (const r of rows) {
+      const info = isoInfo(r.id);
+      for (const p of projects) {
+        const hours = r.h[p.id] || 0, st = statusFor(p, r.id, hours, r.w);
+        out.push([r.id, ymd(addDays(parseYmd(r.id), 6)), info.year, info.week, p.name, hours, targetFor(p, r.id) || 0, statusCode[st.kind], r.w.waived ? 'yes' : 'no', r.w.note]);
+      }
+    }
+    return csv(out);
+  }
+  function blocksCsv(year) {
+    const out = [['date', 'weekday', 'start', 'end', 'hours', 'project', 'iso_year', 'iso_week']];
+    for (const id of weeksOfYear(year)) {
+      const w = getWeek(id), info = isoInfo(id), m = parseYmd(id);
+      for (let d = 0; d < DAYS; d++) {
+        let s = 0;
+        while (s < SLOTS) {
+          const pid = w.slots[key(d, s)];
+          if (!pid) { s++; continue; }
+          let e = s; while (e < SLOTS && w.slots[key(d, e)] === pid) e++;
+          const p = projById(pid), dt = addDays(m, d);
+          out.push([ymd(dt), fmtDay.format(dt), hhmm(s), hhmm(e), (e - s) / 2, p ? p.name : 'Removed project', info.year, info.week]);
+          s = e;
+        }
+      }
+    }
+    return csv(out);
+  }
+  function backupJson() {
+    const weeks = [...state.weeks.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1)).map(([id, w]) => ({ id, ...w }));
+    return JSON.stringify({ exportedAt: new Date().toISOString(), projects: state.projects, weeks }, null, 2);
+  }
+  async function offer(filename, text) {
+    const msg = $('#expMsg'); msg.dataset.tone = '';
+    if (state.downloads) {
+      try { await state.downloads.save({ filename, data: text }); msg.textContent = 'Saved ' + filename + '.'; $('#exportFallback').hidden = true; return; }
+      catch (e) {
+        const c = e && e.code;
+        if (c === 'declined') { msg.textContent = 'Download cancelled.'; return; }
+        if (c === 'rate_limited') { msg.textContent = 'A download prompt is already open. Finish that one first.'; return; }
+      }
+    }
+    msg.textContent = '';
+    $('#exportText').value = text; $('#exportFallback').hidden = false; $('#exportText').dataset.name = filename;
+  }
+
+  /* ---------- projects view ---------- */
+  function hoursAllTime(pid) { let n = 0; for (const w of state.weeks.values()) if (w && w.slots) for (const v of Object.values(w.slots)) if (v === pid) n += 0.5; return n; }
+  function projectBody(p) { const b = Object.assign({}, p); delete b.id; return b; }
+  function saveProject(p) {
+    state.projects = sortProjects(state.projects.map((x) => (x.id === p.id ? p : x)));
+    save('projects/' + p.id, projectBody(p));
+  }
+  let projRenderPending = false;
+  function renderProjects() {
+    const list = $('#projectList');
+    if (list.contains(document.activeElement) && document.activeElement.matches('input, select')) { projRenderPending = true; return; }
+    projRenderPending = false;
+    if (!state.projects.length) {
+      list.innerHTML = '<p class="empty-note">No projects yet. Add the first one below with its weekly target.</p>';
+    } else {
+      const usedSlots = new Map(state.projects.map((p) => [p.slot, p.id]));
+      list.innerHTML = state.projects.map((p) => {
+        const total = hoursAllTime(p.id), ts = sortedTargets(p);
+        let colors = '';
+        for (let i = 0; i < MAX_PROJECTS; i++) {
+          const taken = usedSlots.has(i) && usedSlots.get(i) !== p.id;
+          colors += '<button type="button" class="cswatch" role="radio" data-act="color" data-slot="' + i + '" aria-checked="' + (p.slot === i) + '" aria-label="Colour ' + (i + 1) + (taken ? ', used by another project' : '') + '" style="--fill:var(--s' + (i + 1) + ')"' + (state.readOnly ? ' disabled' : '') + '></button>';
+        }
+        const rowsH = ts.map((t, i) => '<div class="trow" data-ti="' + i + '">' +
+          '<input type="number" min="0" max="168" step="0.5" value="' + t.hours + '" data-tf="hours" aria-label="Hours per week"' + (state.readOnly ? ' disabled' : '') + '>' +
+          '<span class="unit">h per week, from week of</span>' +
+          '<input type="date" value="' + t.from + '" data-tf="from" aria-label="Starts week of"' + (state.readOnly ? ' disabled' : '') + '>' +
+          (ts.length > 1 && !state.readOnly ? '<button type="button" class="btn ghost" data-act="rmTarget" data-ti="' + i + '">Remove</button>' : '') + '</div>').join('');
+        return '<article class="panel pcard" data-pid="' + esc(p.id) + '">' +
+          '<div class="pcard-head"><span class="sw" style="--fill:' + fillVar(p) + '"></span>' +
+          '<input type="text" maxlength="40" value="' + esc(p.name) + '" data-field="name" aria-label="Project name"' + (state.readOnly ? ' disabled' : '') + '>' +
+          '<span class="ptotal">' + fmtH(total) + ' h logged in total</span></div>' +
+          '<div class="colors" role="radiogroup" aria-label="Colour">' + colors + '</div>' +
+          '<div class="ttable"><h4>Weekly target</h4>' + rowsH +
+          (state.readOnly ? '' : '<div><button type="button" class="btn" data-act="addTarget">Change target from a later week</button></div>') + '</div>' +
+          '<div class="pcard-foot"><label class="check"><input type="checkbox" data-field="archived"' + (p.archived ? ' checked' : '') + (state.readOnly ? ' disabled' : '') + '> Archived (hidden from the paint palette)</label>' +
+          (state.readOnly ? '' : '<button type="button" class="btn ghost danger" data-act="delete"' + (total > 0 ? ' disabled title="This project has logged hours. Archive it instead."' : '') + '>Delete project</button>') + '</div></article>';
+      }).join('');
+    }
+    $('#addProjectForm').hidden = state.readOnly;
+    if (!$('#apFrom').value) $('#apFrom').value = thisMonday();
+  }
+  function readTargets(card) {
+    const rows = [...card.querySelectorAll('.trow')];
+    const map = new Map();
+    for (const r of rows) {
+      const hours = Math.max(0, Math.min(168, Number(r.querySelector('[data-tf="hours"]').value) || 0));
+      const fromRaw = r.querySelector('[data-tf="from"]').value;
+      if (!isValidYmd(fromRaw)) continue;
+      map.set(mondayId(parseYmd(fromRaw)), Math.round(hours * 2) / 2);
+    }
+    return [...map.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1)).map(([from, hours]) => ({ from, hours }));
+  }
+  function addProject(name, hours, from, msgEl) {
+    name = String(name || '').trim();
+    if (!name) { msgEl.textContent = 'Give the project a name.'; msgEl.dataset.tone = 'bad'; return false; }
+    if (state.projects.length >= MAX_PROJECTS) { msgEl.textContent = 'The ledger tracks up to ' + MAX_PROJECTS + ' projects.'; msgEl.dataset.tone = 'bad'; return false; }
+    if (!isValidYmd(from)) { msgEl.textContent = 'Pick the week the target starts.'; msgEl.dataset.tone = 'bad'; return false; }
+    const used = new Set(state.projects.map((p) => p.slot)); let slot = 0; while (used.has(slot)) slot++;
+    const id = 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    const p = { id, name, slot, targets: [{ from: mondayId(parseYmd(from)), hours: Math.round(Math.max(0, Math.min(168, Number(hours) || 0)) * 2) / 2 }], archived: false, order: Date.now(), createdAt: new Date().toISOString() };
+    state.projects = sortProjects([...state.projects, p]);
+    if (!state.brush || state.brush === 'erase' || !projById(state.brush)) state.brush = id;
+    save('projects/' + id, projectBody(p));
+    msgEl.textContent = 'Added ' + name + '.'; msgEl.dataset.tone = '';
+    renderAll();
+    return true;
+  }
+
+  /* ---------- routing and render ---------- */
+  function route() {
+    const h = location.hash.replace('#', '');
+    state.view = ['week', 'audit', 'projects'].includes(h) ? h : 'week';
+  }
+  function renderAll() {
+    updateSync(); renderBanner();
+    for (const a of document.querySelectorAll('.tab')) { if (a.dataset.view === state.view) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); }
+    $('#view-week').hidden = state.view !== 'week';
+    $('#view-audit').hidden = state.view !== 'audit';
+    $('#view-projects').hidden = state.view !== 'projects';
+    if (state.view === 'week') renderWeek();
+    else if (state.view === 'audit') renderAudit();
+    else renderProjects();
+  }
+  function goWeek(id) { state.weekId = id; renderAll(); scrollToWork(); }
+
+  /* ---------- UI bindings ---------- */
+  let noteTimer = null;
+  function bindUI() {
+    window.addEventListener('hashchange', () => { route(); renderAll(); if (state.view === 'week') scrollToWork(); });
+    $('#prevWeek').addEventListener('click', () => goWeek(ymd(addDays(parseYmd(state.weekId), -7))));
+    $('#nextWeek').addEventListener('click', () => goWeek(ymd(addDays(parseYmd(state.weekId), 7))));
+    $('#thisWeek').addEventListener('click', () => goWeek(thisMonday()));
+    $('#jumpDate').addEventListener('change', (e) => { if (isValidYmd(e.target.value)) goWeek(mondayId(parseYmd(e.target.value))); });
+
+    $('#brushes').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-brush]'); if (!b) return;
+      state.brush = b.dataset.brush; renderWeek();
+    });
+    if (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) {
+      $('#paintHint').textContent = 'Pick a project, then tap a cell to log 30 minutes (tap it again to clear). For longer stretches, use Log a block below.';
+    }
+
+    $('#setupForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      if (addProject($('#setupName').value, $('#setupHours').value, $('#setupFrom').value, $('#setupMsg'))) { $('#setupName').value = ''; $('#setupHours').value = ''; }
+    });
+    $('#addProjectForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      if (addProject($('#apName').value, $('#apHours').value, $('#apFrom').value, $('#apMsg'))) { $('#apName').value = ''; $('#apHours').value = ''; }
+    });
+
+    $('#blockForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const msg = $('#bfMsg'); msg.dataset.tone = '';
+      const d = +$('#bfDay').value, s0 = +$('#bfFrom').value, s1 = +$('#bfTo').value, pid = $('#bfProject').value;
+      if (s1 <= s0) { msg.textContent = 'The end time must be after the start time.'; msg.dataset.tone = 'bad'; return; }
+      const base = Object.assign({}, getWeek(state.weekId).slots), slots = Object.assign({}, base);
+      let replaced = 0;
+      for (let s = s0; s < s1; s++) { const k = key(d, s); if (slots[k] && slots[k] !== pid) replaced++; if (pid) slots[k] = pid; else delete slots[k]; }
+      const dayTxt = $('#bfDay').selectedOptions[0].textContent, hrs = fmtH((s1 - s0) / 2);
+      if (sameSlots(slots, base)) { msg.textContent = 'Nothing changed: that time already looks like this.'; return; }
+      commitSlots(slots, base);
+      const p = projById(pid);
+      msg.textContent = pid ? 'Logged ' + hrs + ' h to ' + p.name + ' on ' + dayTxt + '.' + (replaced ? ' Replaced ' + fmtH(replaced / 2) + ' h of other entries.' : '') : 'Cleared ' + hrs + ' h on ' + dayTxt + '.';
+    });
+
+    const note = $('#weekNote');
+    const flushNote = () => {
+      if (noteTimer) { clearTimeout(noteTimer); noteTimer = null; }
+      const id = note.dataset.week || state.weekId;
+      if (getWeek(id).note !== note.value) writeWeek(id, { note: note.value });
+    };
+    note.addEventListener('focus', () => { note.dataset.week = state.weekId; });
+    note.addEventListener('input', () => { if (noteTimer) clearTimeout(noteTimer); noteTimer = setTimeout(flushNote, 900); });
+    note.addEventListener('blur', flushNote);
+    $('#weekWaived').addEventListener('change', (e) => { writeWeek(state.weekId, { waived: e.target.checked }); renderWeek(); });
+
+    let copyArmed = 0;
+    $('#copyPrev').addEventListener('click', () => {
+      const msg = $('#copyMsg'), prevId = ymd(addDays(parseYmd(state.weekId), -7));
+      const prev = getWeek(prevId).slots, cur = getWeek(state.weekId).slots;
+      const prevN = Object.keys(prev).length, curN = Object.keys(cur).length;
+      if (!prevN) { msg.textContent = 'Last week has no blocks to copy.'; return; }
+      if (curN && Date.now() - copyArmed > 5000) {
+        copyArmed = Date.now();
+        msg.textContent = 'This replaces the ' + fmtH(curN / 2) + ' h already logged this week. Click again to confirm.';
+        return;
+      }
+      copyArmed = 0;
+      commitSlots(Object.assign({}, prev), cur);
+      msg.textContent = 'Copied ' + fmtH(prevN / 2) + ' h from last week.';
+    });
+
+    // audit
+    $('#auditYear').addEventListener('change', (e) => { state.year = +e.target.value; renderAudit(); });
+    $('#auditTable').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-week]'); if (!b) return;
+      state.weekId = b.dataset.week; location.hash = '#week';
+    });
+    $('#expWeekly').addEventListener('click', () => offer('hours-weekly-' + state.year + '.csv', weeklyCsv(state.year)));
+    $('#expBlocks').addEventListener('click', () => offer('hours-blocks-' + state.year + '.csv', blocksCsv(state.year)));
+    $('#expJson').addEventListener('click', () => offer('hours-ledger-backup-' + ymd(new Date()) + '.json', backupJson()));
+    $('#copyExport').addEventListener('click', () => {
+      const ta = $('#exportText');
+      const done = () => { $('#expMsg').textContent = 'Copied. Paste it into a file named ' + (ta.dataset.name || 'export.csv') + '.'; };
+      try { navigator.clipboard.writeText(ta.value).then(done, () => { ta.focus(); ta.select(); }); } catch (err) { ta.focus(); ta.select(); }
+    });
+
+    // projects
+    const list = $('#projectList');
+    list.addEventListener('change', (e) => {
+      const card = e.target.closest('.pcard'); if (!card) return;
+      const p = projById(card.dataset.pid); if (!p) return;
+      const next = Object.assign({}, p);
+      if (e.target.dataset.field === 'name') { const v = e.target.value.trim(); if (!v) { e.target.value = p.name; return; } next.name = v; }
+      else if (e.target.dataset.field === 'archived') next.archived = e.target.checked;
+      else if (e.target.dataset.tf) next.targets = readTargets(card);
+      else return;
+      if (!next.targets || !next.targets.length) next.targets = sortedTargets(p);
+      saveProject(next);
+      if (e.target.dataset.tf === 'from') projRenderPending = true;
+      if (state.brush === p.id && next.archived) { const a = activeProjects(); state.brush = a.length ? a[0].id : 'erase'; }
+    });
+    list.addEventListener('focusout', () => { setTimeout(() => { if (projRenderPending && state.view === 'projects') renderProjects(); }, 0); });
+    list.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-act]'); if (!btn) return;
+      const card = btn.closest('.pcard'); const p = projById(card.dataset.pid); if (!p) return;
+      const act = btn.dataset.act;
+      if (act === 'color') { saveProject(Object.assign({}, p, { slot: +btn.dataset.slot })); renderProjects(); }
+      else if (act === 'addTarget') {
+        const ts = sortedTargets(p), last = ts[ts.length - 1];
+        let from = thisMonday();
+        if (last && last.from >= from) from = ymd(addDays(parseYmd(last.from), 7));
+        saveProject(Object.assign({}, p, { targets: ts.concat([{ from, hours: last ? last.hours : 0 }]) }));
+        renderProjects();
+      } else if (act === 'rmTarget') {
+        const ts = sortedTargets(p); ts.splice(+btn.dataset.ti, 1);
+        if (ts.length) { saveProject(Object.assign({}, p, { targets: ts })); renderProjects(); }
+      } else if (act === 'delete') {
+        if (hoursAllTime(p.id) > 0) return;
+        if (btn.dataset.armed && Date.now() - +btn.dataset.armed < 5000) {
+          state.projects = state.projects.filter((x) => x.id !== p.id);
+          save('projects/' + p.id, null);
+          if (state.brush === p.id) state.brush = null;
+          onData();
+        } else { btn.dataset.armed = String(Date.now()); btn.textContent = 'Click again to delete'; }
+      }
+    });
+  }
+
+  /* ---------- boot ---------- */
+  async function init() {
+    buildGrid(); bindUI(); route(); renderAll(); scrollToWork();
+    const c = window.claude;
+    if (!c || typeof c.use !== 'function') { state.storage = 'none'; renderAll(); return; }
+    const safe = (p) => Promise.resolve(p).catch(() => null);
+    const [db, user, downloads] = await Promise.all([safe(c.use('db')), safe(c.use('user')), safe(c.use('downloads'))]);
+    state.downloads = downloads;
+    if (!db) { state.storage = 'none'; renderAll(); return; }
+    state.db = db;
+    if (user) { try { if ((await user.can('data.write')) === false) state.readOnly = true; } catch (e) { /* keep inputs */ } }
+    subscribe();
+    renderAll();
+  }
+  init();
+})();
+</script>
